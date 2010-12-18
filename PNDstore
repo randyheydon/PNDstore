@@ -1,0 +1,10 @@
+#!/usr/bin/env python2
+"""Provides a GUI interface to install and update PND applications."""
+
+
+from optparse import OptionParser
+
+parser = OptionParser()
+parser.add_option('--working-dir', '-w',
+    dest='working_dir', default='$HOME/.pndstore',
+    metavar='DIRECTORY', help='find/store config and database in DIRECTORY')

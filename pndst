@@ -1,0 +1,24 @@
+#!/usr/bin/env python2
+"""Provides a command-line interface to install and update PND applications."""
+
+import os.path
+from optparse import OptionParser
+
+parser = OptionParser()
+parser.add_option('--update', '-y',
+    action='store_true', dest='update', default=False,
+    help='update both local and remote databases')
+parser.add_option('--update-local',
+    action='store_true', dest='update_local', default=False,
+    help='update database of locally installed applications')
+parser.add_option('--update-remote',
+    action='store_true', dest='update_remote', default=False,
+    help='update database of remotely available applications')
+parser.add_option('--upgrade', '-u',
+    action='store_true', dest='upgrade', default=False,
+    help='upgrade local applications with latest available')
+parser.add_option('--working-dir', '-w',
+    dest='working_dir', default=os.path.expanduser('~/.pndstore'),
+    metavar='DIRECTORY', help='find/store config and database in DIRECTORY [default: %default]')
+
+print parser.parse_args()

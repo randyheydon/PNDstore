@@ -1,0 +1,6 @@
+#Compiled Python files.
+*.pyc
+*.pyo
+
+#libpnd files (only there for dev purposes).
+pandora-libraries/
