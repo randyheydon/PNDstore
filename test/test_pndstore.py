@@ -49,22 +49,12 @@ class TestOptions(unittest.TestCase):
 
 
 class TestDatabaseUpdate(unittest.TestCase):
-    def setUp(self):
-        options.working_dir = 'temp'
+    repotxt = (
 
-        #Create some local repository files for testing.
-        repo_files = ('temp/first.json', 'temp/second.json')
-        with open(options.get_cfg(),'w') as cfg:
-            cfg.write('[repositories]\n1=file://%s\n2=file://%s' %
-                tuple([os.path.abspath(i) for i in repo_files]) )
-
-        for i in repo_files:
-            with open(i,'w') as repo:
-                repo.write(
 """{
   "repository": {
     "name":        "%s",
-    "version":     1.0
+    "version":     %f
   },
   "applications": [
     {
@@ -87,10 +77,23 @@ class TestDatabaseUpdate(unittest.TestCase):
       "categories": [
         "Game"
       ],
-      "icon":     "http://dflemstr.dyndns.org:8088/file/image/WPL5JKWK0PTODSWK.png",
+      "icon":     "http://dflemstr.dyndns.org:8088/file/image/WPL5JKWK0PTODSWK.png"
     }
   ]
-}""" % os.path.basename(i))
+}""")
+    
+    def setUp(self):
+        options.working_dir = 'temp'
+
+        #Create some local repository files for testing.
+        repo_files = ('temp/first.json', 'temp/second.json')
+        with open(options.get_cfg(),'w') as cfg:
+            cfg.write('[repositories]\n1=file://%s\n2=file://%s' %
+                tuple([os.path.abspath(i) for i in repo_files]) )
+
+        for i in repo_files:
+            with open(i,'w') as repo:
+                repo.write(self.repotxt % (os.path.basename(i), 1.0))
 
     def tearDown(self):
         shutil.rmtree(options.working_dir)
@@ -99,14 +102,31 @@ class TestDatabaseUpdate(unittest.TestCase):
     def testOpenRepos(self):
         #Maybe this shouldn't be here, since it's more an implementation detail.
         repos = database_update.open_repos()
+        #TODO: Check that URIs are... right?
 
 
     def testUpdateRemote(self):
         database_update.update_remote()
+        #TODO: Check that database has correct entries.
+
+
+    def testBadRemote(self):
+        #Test for a malformed JSON file.
+        repo0 = os.path.join(options.get_working_dir(),
+            os.path.basename(options.get_repos()[0]))
+        with open(repo0, 'a') as r: r.write(',')
+        self.assertRaises(database_update.RepoError, database_update.update_remote)
+        #Test for incorrect version.
+        with open(repo0, 'w') as r:
+            r.write(self.repotxt % (os.path.basename(repo0), 1.3))
+        self.assertRaises(database_update.RepoError, database_update.update_remote)
+        #TODO: Test for missing fields.
+
 
 
     def testUpdateLocal(self):
         database_update.update_local()
+        #TODO: Check that database has correct entries.
 
 
 
