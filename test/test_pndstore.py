@@ -15,6 +15,11 @@ class TestOptions(unittest.TestCase):
         shutil.rmtree(options.working_dir)
 
 
+    def testWorkingDir(self):
+        #Ensure the full returned path is in this test directory.
+        self.assertEqual(options.get_working_dir()[-9:], 'test/temp')
+
+
     def testCopyCfg(self):
         options.get_cfg()
         self.assertEqual(options.get_cfg(), os.path.abspath('temp/pndstore.cfg'))
@@ -27,44 +32,81 @@ class TestOptions(unittest.TestCase):
         #This file doesn't have to exist, because it will be created by the
         #database_update module.  But the directory must exist for the
         #database to be created.
-        self.assertTrue(os.path.isdir(options.working_dir))
+        self.assertTrue(os.path.isdir(options.get_working_dir()))
 
 
     def testRepositories(self):
         with open(options.get_cfg(), 'w') as cfg:
             cfg.write(
 """[repositories]
-1=firsturl
-9=fourthurl
-5=thirdurl
-4=secondurl""")
-        self.assertEqual(options.get_repos(), ['firsturl','secondurl','thirdurl','fourthurl'])
+1=file://firsturl
+9=http://fourthurl
+5=ftp://thirdurl
+4=http://secondurl""")
+        self.assertEqual(options.get_repos(), ['file://firsturl',
+            'http://secondurl','ftp://thirdurl','http://fourthurl'])
 
 
 
 class TestDatabaseUpdate(unittest.TestCase):
     def setUp(self):
         options.working_dir = 'temp'
-        repo_files = ('first.json', 'second.json')
+
+        #Create some local repository files for testing.
+        repo_files = ('temp/first.json', 'temp/second.json')
         with open(options.get_cfg(),'w') as cfg:
-            cfg.write('[repositories]\n1=file:/%s\n2=file:/%s' %
-                tuple([os.path.abspath('temp/%s'%i) for i in repo_files]) )
-        for i in options.get_repos(): pass
+            cfg.write('[repositories]\n1=file://%s\n2=file://%s' %
+                tuple([os.path.abspath(i) for i in repo_files]) )
+
+        for i in repo_files:
+            with open(i,'w') as repo:
+                repo.write(
+"""{
+  "repository": {
+    "name":        "%s",
+    "version":     1.0
+  },
+  "applications": [
+    {
+      "id":        "viceVIC.pickle",
+      "version": {
+        "major":   2,
+        "minor":   2,
+        "release": 0,
+        "build":   0
+      },
+      "author":   "Ported by Pickle",
+      "vendor":    "dflemstr",
+      "uri":       "http://dflemstr.dyndns.org:8088/file/package/WPL5JKWK0PTODSWK.pnd",
+      "localizations": {
+        "en_US": {
+          "title": "Vice xVIC",
+          "description": "A VIC Emulator."
+        }
+      },
+      "categories": [
+        "Game"
+      ],
+      "icon":     "http://dflemstr.dyndns.org:8088/file/image/WPL5JKWK0PTODSWK.png",
+    }
+  ]
+}""" % os.path.basename(i))
 
     def tearDown(self):
         shutil.rmtree(options.working_dir)
 
 
     def testOpenRepos(self):
-        pass
+        #Maybe this shouldn't be here, since it's more an implementation detail.
+        repos = database_update.open_repos()
 
 
     def testUpdateRemote(self):
-        pass
+        database_update.update_remote()
 
 
     def testUpdateLocal(self):
-        pass
+        database_update.update_local()
 
 
 
