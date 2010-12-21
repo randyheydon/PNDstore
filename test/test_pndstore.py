@@ -3,7 +3,7 @@
 import sys
 sys.path.insert(0, '..')
 
-import unittest, shutil, os.path
+import unittest, shutil, os.path, locale
 from pndstore import options, database_update, database_query
 
 
@@ -45,6 +45,21 @@ class TestOptions(unittest.TestCase):
 4=http://secondurl""")
         self.assertEqual(options.get_repos(), ['file://firsturl',
             'http://secondurl','ftp://thirdurl','http://fourthurl'])
+
+
+    def testLocale(self):
+        #Should return list in desired order, always ending with en_US.
+        #If no list is specified, should return (system lang, en_US).
+        self.assertEquals(options.get_locale(), [locale.getdefaultlocale()[0], 'en_US'])
+
+        with open(options.get_cfg(), 'w') as cfg:
+            cfg.write(
+"""[repositories]
+1=file://firsturl
+[locales]
+1=en_CA
+2=de_DE""")
+        self.assertEquals(options.get_locale(), ['en_CA','de_DE','en_US'])
 
 
 

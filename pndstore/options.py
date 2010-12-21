@@ -3,7 +3,7 @@
 Concurrency note: as long as working_dir and the config file already exist, all functions here should have no side effects, and should therefore be thread safe.  To ensure that both exist, call get_cfg() at least once before starting other threads."""
 
 from ConfigParser import SafeConfigParser
-import shutil, os.path
+import shutil, os.path, locale
 
 #If a different working directory is to be used, the script importing this
 #module should modify this value before calling any functions here (or using
@@ -41,3 +41,21 @@ def get_repos():
     cfg.read(get_cfg())
     #TODO: Perhaps validate URLs first?
     return [cfg.get('repositories',i) for i in sorted(cfg.options('repositories'))]
+
+
+def get_locale():
+    """Returns a list of locales in order of preference.  If none are specified, first preference is the system locale.  The PND spec requires that en_US always be available for titles and descriptions, so that will always be the last entry in the list (it shouldn't matter if it appears multiple times in the list)."""
+    #TODO: Perhaps validate language codes?
+    #TODO: What should be done for language codes without country codes?
+    cfg = SafeConfigParser()
+    cfg.read(get_cfg())
+
+    if cfg.has_section('locales'):
+        #Read locales.
+        locales = [cfg.get('locales',i) for i in sorted(cfg.options('locales'))]
+    else:
+        #Get system default locale.
+        locales = [locale.getdefaultlocale()[0]]
+    #The en_US locale should be available in all PNDs, so it should be a last resort.
+    locales.append('en_US')
+    return locales
