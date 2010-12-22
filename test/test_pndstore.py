@@ -3,7 +3,7 @@
 import sys
 sys.path.insert(0, '..')
 
-import unittest, shutil, os.path, locale
+import unittest, shutil, os.path, locale, sqlite3
 from pndstore import options, database_update, database_query
 
 
@@ -75,14 +75,14 @@ class TestDatabaseUpdate(unittest.TestCase):
     {
       "id":        "viceVIC.pickle",
       "version": {
-        "major":   2,
+        "major":   4,
         "minor":   2,
-        "release": 0,
-        "build":   0
+        "release": 1,
+        "build":   3
       },
       "author":   "Ported by Pickle",
       "vendor":    "dflemstr",
-      "uri":       "http://dflemstr.dyndns.org:8088/file/package/WPL5JKWK0PTODSWK.pnd",
+      "uri":       "http://example.org/test.pnd",
       "localizations": {
         "en_US": {
           "title": "Vice xVIC",
@@ -92,23 +92,55 @@ class TestDatabaseUpdate(unittest.TestCase):
       "categories": [
         "Game"
       ],
-      "icon":     "http://dflemstr.dyndns.org:8088/file/image/WPL5JKWK0PTODSWK.png"
+      "icon":     "http://example.org/test.png"
+    },
+    {
+      "id":        "Different VICE",
+      "version": {
+        "major":   9,
+        "minor":   3,
+        "release": 3,
+        "build":   6
+      },
+      "vendor":    "Tempel",
+      "uri":       "http://example.org/test2.pnd",
+      "localizations": {
+        "en_US": {
+          "title": "Vice xVIC",
+          "description": "A VIC Emulator."
+        },
+        "en_CA": {
+          "title": "Vice xVIC, eh?",
+          "description": "It's not prejudice if I'm Canadian, right?!"
+        }
+      },
+      "categories": [
+        "Game"
+      ],
+      "icon":     "http://example.org/test2.png"
     }
   ]
 }""")
     
+    cfg_text = (
+"""[repositories]
+1=file://%s
+2=file://%s
+[locales]
+1=en_CA
+2=de_DE""")
+
     def setUp(self):
         options.working_dir = 'temp'
 
         #Create some local repository files for testing.
         repo_files = ('temp/first.json', 'temp/second.json')
         with open(options.get_cfg(),'w') as cfg:
-            cfg.write('[repositories]\n1=file://%s\n2=file://%s' %
-                tuple([os.path.abspath(i) for i in repo_files]) )
+            cfg.write(self.cfg_text % tuple([os.path.abspath(i) for i in repo_files]) )
 
         for i in repo_files:
             with open(i,'w') as repo:
-                repo.write(self.repotxt % (os.path.basename(i), 1.0))
+                repo.write(self.repotxt % (os.path.basename(i).replace('.',' '), 1.0))
 
     def tearDown(self):
         shutil.rmtree(options.working_dir)
@@ -122,7 +154,37 @@ class TestDatabaseUpdate(unittest.TestCase):
 
     def testUpdateRemote(self):
         database_update.update_remote()
-        #TODO: Check that database has correct entries.
+        db = sqlite3.connect(options.get_database())
+        db.row_factory = sqlite3.Row
+        #Check that database has correct entries.
+        c = db.execute('Select * From "first json"')
+        i = c.fetchone()
+        self.assertEqual(i['id'], 'viceVIC.pickle')
+        self.assertEqual(i['version_major'], 4)
+        self.assertEqual(i['version_minor'], 2)
+        self.assertEqual(i['version_release'], 1)
+        self.assertEqual(i['version_build'], 3)
+        self.assertEqual(i['uri'], "http://example.org/test.pnd")
+        self.assertEqual(i['title'], "Vice xVIC")
+        self.assertEqual(i['description'], "A VIC Emulator.")
+        self.assertEqual(i['author'], "Ported by Pickle")
+        self.assertEqual(i['vendor'], "dflemstr")
+        self.assertEqual(i['icon'], "http://example.org/test.png")
+        self.assertEqual(i['icon_cache'], None)
+        i = c.fetchone()
+        self.assertEqual(i['id'], 'Different VICE')
+        self.assertEqual(i['version_major'], 9)
+        self.assertEqual(i['version_minor'], 3)
+        self.assertEqual(i['version_release'], 3)
+        self.assertEqual(i['version_build'], 6)
+        self.assertEqual(i['uri'], "http://example.org/test2.pnd")
+        self.assertEqual(i['title'], "Vice xVIC, eh?")
+        self.assertEqual(i['description'], "It's not prejudice if I'm Canadian, right?!")
+        self.assertEqual(i['author'], None)
+        self.assertEqual(i['vendor'], "Tempel")
+        self.assertEqual(i['icon'], "http://example.org/test2.png")
+        self.assertEqual(i['icon_cache'], None)
+        #TODO: Test multiple (different!) databases.
 
 
     def testBadRemote(self):
@@ -133,9 +195,9 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertRaises(database_update.RepoError, database_update.update_remote)
         #Test for incorrect version.
         with open(repo0, 'w') as r:
-            r.write(self.repotxt % (os.path.basename(repo0), 1.3))
+            r.write(self.repotxt % (os.path.basename(repo0), 99.7))
         self.assertRaises(database_update.RepoError, database_update.update_remote)
-        #TODO: Test for missing fields.
+        #TODO: Test for missing fields, including missing languages.
 
 
 
