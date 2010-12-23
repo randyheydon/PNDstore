@@ -146,12 +146,6 @@ class TestDatabaseUpdate(unittest.TestCase):
         shutil.rmtree(options.working_dir)
 
 
-    def testOpenRepos(self):
-        #Maybe this shouldn't be here, since it's more an implementation detail.
-        repos = database_update.open_repos()
-        #TODO: Check that URIs are... right?
-
-
     def testUpdateRemote(self):
         database_update.update_remote()
         db = sqlite3.connect(options.get_database())

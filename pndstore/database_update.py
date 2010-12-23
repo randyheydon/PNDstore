@@ -9,11 +9,36 @@ LOCAL_TABLE = 'local'
 class RepoError(Exception): pass
 
 
+def sanitize_sql(name):
+    """The execute method's parametrization does not work for table names.  Therefore string formatting must be used, which bypasses the sqlite3 package's sanitization.  This function takes a stab at sanitizing.  It's not perfect, but it's also not a huge issue here; if you're reading a malicious feed, there are worse things they can do than screw with this database."""
+    return str(name).translate(None, """.,;:'"(){}-""")
+
+
+def create_table(cursor, name):
+    name = sanitize_sql(name)
+    cursor.execute("""Create Table "%s" (
+        id Primary Key,
+        version_major Int Not Null,
+        version_minor Int Not Null,
+        version_release Int Not Null,
+        version_build Int Not Null,
+        uri Not Null,
+        title Not Null,
+        description Not Null,
+        author,
+        vendor,
+        icon,
+        icon_cache Buffer
+        )""" % name)
+    #TODO: Holy crap!  Forgot categories!
+
+
 def open_repos():
     return [urllib2.urlopen(i) for i in options.get_repos()]
 
 
 def update_remote():
+    """Adds a table for each repository to the database, adding an entry for each application listed in the repository."""
     #Open database connection.
     db = sqlite3.connect(options.get_database())
     db.row_factory = sqlite3.Row
@@ -36,24 +61,13 @@ def update_remote():
                         % (REPO_VERSION, v))
 
                 #Create table for this repo.
-                #The execute method's parametrization does not work for table
-                #names.  Therefore sanitize it and string format.  Any other
-                #dangerous characters that should be removed?
-                table = str(repo["repository"]["name"]).translate(None, """.,;:'"(){}""")
+                table = sanitize_sql(repo["repository"]["name"])
                 if table == LOCAL_TABLE:
                     raise RepoError('Cannot handle a repo named "%s"; name is reserved for internal use.'%LOCAL_TABLE)
-                c.execute("""Create Table "%s" (
-                    id Primary Key,
-                    version_major Int Not Null,
-                    version_minor Int Not Null,
-                    version_release Int Not Null,
-                    version_build Int Not Null,
-                    uri Not Null,
-                    title Not Null,
-                    description Not Null,
-                    author, vendor, icon, icon_cache Buffer)""" % table)
+                create_table(c, table)
 
                 #Insert Or Replace for each app in repo.
+                #TODO: Break into subfunctions?
                 for app in repo["applications"]:
 
                     #Get info in preferred language (fail if none available).
@@ -87,8 +101,7 @@ def update_remote():
                         opt_field['vendor'],
                         opt_field['icon'], None) )
                     #TODO: Holy crap!  Forgot categories!
-                    #TODO: make sure no required fields are missing.
-                    #covered by try and Not Null?
+                    #TODO: make sure no required fields are missing. covered by try and Not Null?
 
             except KeyError:
                 raise RepoError('A required field is missing from this repository')
