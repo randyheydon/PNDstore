@@ -38,11 +38,14 @@ class TestOptions(unittest.TestCase):
     def testRepositories(self):
         with open(options.get_cfg(), 'w') as cfg:
             cfg.write(
-"""[repositories]
-1=file://firsturl
-9=http://fourthurl
-5=ftp://thirdurl
-4=http://secondurl""")
+"""{
+    "repositories": [
+        "file://firsturl",
+        "http://secondurl",
+        "ftp://thirdurl",
+        "http://fourthurl"
+    ]
+}""")
         self.assertEqual(options.get_repos(), ['file://firsturl',
             'http://secondurl','ftp://thirdurl','http://fourthurl'])
 
@@ -54,11 +57,15 @@ class TestOptions(unittest.TestCase):
 
         with open(options.get_cfg(), 'w') as cfg:
             cfg.write(
-"""[repositories]
-1=file://firsturl
-[locales]
-1=en_CA
-2=de_DE""")
+"""{
+    "repositories": [
+        "file://firsturl"
+    ],
+    "locales": [
+        "en_CA",
+        "de_DE"
+    ]
+}""")
         self.assertEquals(options.get_locale(), ['en_CA','de_DE','en_US'])
 
 
@@ -123,12 +130,16 @@ class TestDatabaseUpdate(unittest.TestCase):
 }""")
     
     cfg_text = (
-"""[repositories]
-1=file://%s
-2=file://%s
-[locales]
-1=en_CA
-2=de_DE""")
+"""{
+    "repositories": [
+        "file://%s",
+        "file://%s"
+    ],
+    "locales": [
+        "en_CA",
+        "de_DE"
+    ]
+}""")
 
     def setUp(self):
         options.working_dir = 'temp'
@@ -179,6 +190,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['icon'], "http://example.org/test2.png")
         self.assertEqual(i['icon_cache'], None)
         #TODO: Test multiple (different!) databases.
+        #TODO: Test database updating (namely, removal of apps).
 
 
     def testBadRemote(self):
