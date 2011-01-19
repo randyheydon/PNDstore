@@ -16,7 +16,7 @@ def sanitize_sql(name):
 
 def create_table(cursor, name):
     name = sanitize_sql(name)
-    cursor.execute("""Create Table "%s" (
+    cursor.execute("""Create Table If Not Exists "%s" (
         id Primary Key,
         version_major Int Not Null,
         version_minor Int Not Null,
@@ -60,10 +60,14 @@ def update_remote():
                     raise RepoError('Incorrect repository version (required %f, got %f)'
                         % (REPO_VERSION, v))
 
-                #Create table for this repo.
+                #Create table from scratch for this repo.
+                #Drops it first so no old entries get left behind.
+                #TODO: Yes, there are probably more efficient ways than
+                #dropping the whole thing, whatever, I'll get to it.
                 table = sanitize_sql(repo["repository"]["name"])
                 if table == LOCAL_TABLE:
                     raise RepoError('Cannot handle a repo named "%s"; name is reserved for internal use.'%LOCAL_TABLE)
+                c.execute('Drop Table If Exists "%s"' % table)
                 create_table(c, table)
 
                 #Insert Or Replace for each app in repo.
@@ -102,6 +106,7 @@ def update_remote():
                         opt_field['icon'], None) )
                     #TODO: Holy crap!  Forgot categories!
                     #TODO: make sure no required fields are missing. covered by try and Not Null?
+                    #TODO: Don't erase icon_cache if icon hasn't changed.
 
             except KeyError:
                 raise RepoError('A required field is missing from this repository')
@@ -114,4 +119,17 @@ def update_remote():
 
 
 def update_local():
+    #Useful libpnd functions:
+    #pnd_apps.h: get_appdata_path for when we want a complete removal
+    #   (this will be needed elsewhere later)
+    #pnd_conf.h: pnd_conf_query_searchpath if we happen to need libpnd configs
+    #pnd_desktop.h: pnd_emit_icon_to_buffer to get an icon for caching.
+    #   pnd_map_dotdesktop_categories ?
+    #pnd_discovery.h: pnd_disco_search gives list of valid apps.  PERFECT.
+    #pnd_locate.h: pnd_locate_filename for finding path of specific PND.
+    #pnd_notify.h: everything in here for watching for file changes.
+    #   or perhaps use dbus as per pnd_dbusnotify.h
+    #pnd_pndfiles.h: pnd_pnd_mount for getting screenshots from within.
+    #all of pnd_pxml.h for information from a PXML.
+    #pnd_tinyxml.h: pnd_pxml_parse for exactly what it says.
     pass
