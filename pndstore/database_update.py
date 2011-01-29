@@ -5,13 +5,15 @@ import options, urllib2, sqlite3, json, ctypes
 REPO_VERSION = 1.0
 
 LOCAL_TABLE = 'local'
+REPO_INDEX_TABLE = 'repo_index'
 
 class RepoError(Exception): pass
 
 
 def sanitize_sql(name):
-    """The execute method's parametrization does not work for table names.  Therefore string formatting must be used, which bypasses the sqlite3 package's sanitization.  This function takes a stab at sanitizing.  It's not perfect, but it's also not a huge issue here; if you're reading a malicious feed, there are worse things they can do than screw with this database."""
-    return str(name).translate(None, """.,;:'"(){}-""")
+    """The execute method's parametrization does not work for table names.  Therefore string formatting must be used, which bypasses the sqlite3 package's sanitization.  This function takes a stab at sanitizing.  Since table names are put in double quotes (thereby representing an SQL identifier), any characters should be fine except double quotes.  But since all table names are URLs read from a JSON file, they likely won't include quotes, so this function is mostly useless."""
+    return str(name).translate(None, '"')
+    #TODO: Remove str call once/if it's not needed.
 
 
 def create_table(cursor, name):
@@ -34,7 +36,49 @@ def create_table(cursor, name):
 
 
 def open_repos():
-    return [urllib2.urlopen(i) for i in options.get_repos()]
+    repos = []
+    with sqlite3.connect(options.get_database()) as db:
+        db.row_factory = sqlite3.Row
+        c = db.cursor()
+        #Create index for all repositories to track important info.
+        c.execute("""Create Table If Not Exists "%s" (
+            url Primary Key, name, etag, last_modified
+            )""" % REPO_INDEX_TABLE)
+
+        for url in options.get_repos():
+            #Check if repo exists in index and has an etag/last-modified.
+            table_id = sanitize_sql(url)
+            c.execute('Select etag,last_modified From "%s" Where url=?'
+                %REPO_INDEX_TABLE, (table_id,) )
+            result = c.fetchone()
+            if result is None:
+                #This repo is not yet in the index (it's the first time it's
+                #been checked), so make an empty entry for it.
+                c.execute('Insert Into "%s" (url) Values (?)'
+                    %REPO_INDEX_TABLE, (table_id,) )
+                result = (None, None)
+            etag, last_modified = result
+            #Do a conditional get.
+            req = urllib2.Request(url)
+            req.add_header('If-None-Match', etag)
+            req.add_header('If-Modified-Since', last_modified)
+            class NotModifiedHandler(urllib2.BaseHandler):
+                def http_error_304(self, req, fp, code, message, headers):
+                    return 304
+            opener = urllib2.build_opener(NotModifiedHandler())
+            url_handle = opener.open(req)
+            #If no error, add to list to be read by update_remote
+            if url_handle != 304:
+                repos.append(url_handle)
+                #Update latest etag/last-modified.
+                #Should this be left until update_remote completes?
+                headers = url_handle.info()
+                etag_new = headers.getheader('ETag')
+                last_modified_new = headers.getheader('Last-Modified')
+                c.execute('Update "%s" Set etag=?,last_modified=? Where url=?'
+                    %REPO_INDEX_TABLE, (etag_new, last_modified_new, table_id) )
+
+    return repos
 
 
 def update_remote():
@@ -65,7 +109,7 @@ def update_remote():
                 #TODO: Yes, there are probably more efficient ways than
                 #dropping the whole thing, whatever, I'll get to it.
                 table = sanitize_sql(repo["repository"]["name"])
-                if table == LOCAL_TABLE:
+                if table == LOCAL_TABLE or table == REPO_INDEX_TABLE:
                     raise RepoError('Cannot handle a repo named "%s"; name is reserved for internal use.'%LOCAL_TABLE)
                 c.execute('Drop Table If Exists "%s"' % table)
                 create_table(c, table)
