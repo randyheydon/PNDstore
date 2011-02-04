@@ -99,6 +99,7 @@ class TestDatabaseUpdate(unittest.TestCase):
       "categories": [
         "Game"
       ],
+      "md5": "55538bb9c9ff46699c154d3de733c68b",
       "icon":     "http://example.org/test.png"
     },
     {
@@ -124,6 +125,7 @@ class TestDatabaseUpdate(unittest.TestCase):
       "categories": [
         "Game"
       ],
+      "md5": "d3de733c68b55538bb9c9ff46699c154",
       "icon":     "http://example.org/test2.png"
     }
   ]
@@ -151,7 +153,7 @@ class TestDatabaseUpdate(unittest.TestCase):
 
         for i in repo_files:
             with open(i,'w') as repo:
-                repo.write(self.repotxt % (os.path.basename(i).replace('.',' '), 1.0))
+                repo.write(self.repotxt % (os.path.basename(i).replace('.',' '), 1.1))
 
     def tearDown(self):
         shutil.rmtree(options.working_dir)
@@ -174,6 +176,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['description'], "A VIC Emulator.")
         self.assertEqual(i['author'], "Ported by Pickle")
         self.assertEqual(i['vendor'], "dflemstr")
+        self.assertEqual(i['md5'], '55538bb9c9ff46699c154d3de733c68b')
         self.assertEqual(i['icon'], "http://example.org/test.png")
         self.assertEqual(i['icon_cache'], None)
         i = c.fetchone()
@@ -187,6 +190,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['description'], "It's not prejudice if I'm Canadian, right?!")
         self.assertEqual(i['author'], None)
         self.assertEqual(i['vendor'], "Tempel")
+        self.assertEqual(i['md5'], 'd3de733c68b55538bb9c9ff46699c154')
         self.assertEqual(i['icon'], "http://example.org/test2.png")
         self.assertEqual(i['icon_cache'], None)
         #TODO: Test multiple (different!) databases.
@@ -204,6 +208,7 @@ class TestDatabaseUpdate(unittest.TestCase):
             r.write(self.repotxt % (os.path.basename(repo0), 99.7))
         self.assertRaises(database_update.RepoError, database_update.update_remote)
         #TODO: Test for missing fields, including missing languages.
+        #TODO: Test for malformed fields: uri, icon, md5.
 
 
 

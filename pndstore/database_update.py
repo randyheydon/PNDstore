@@ -1,8 +1,8 @@
 import options, urllib2, sqlite3, json, ctypes
 
-#This module currently only supports version 1.0 of the PND repository
+#This module currently supports these versions of the PND repository
 #specification as seen at http://pandorawiki.org/PND_repository_specification
-REPO_VERSION = 1.0
+REPO_VERSION = (1.0, 1.1)
 
 LOCAL_TABLE = 'local'
 REPO_INDEX_TABLE = 'repo_index'
@@ -29,6 +29,7 @@ def create_table(cursor, name):
         description Not Null,
         author,
         vendor,
+        md5,
         icon,
         icon_cache Buffer
         )""" % name)
@@ -100,8 +101,8 @@ def update_remote():
             try: 
                 #Check it's the right version.
                 v = repo["repository"]["version"]
-                if v != REPO_VERSION:
-                    raise RepoError('Incorrect repository version (required %f, got %f)'
+                if v not in REPO_VERSION:
+                    raise RepoError('Incorrect repository version (required one of %s, got %f)'
                         % (REPO_VERSION, v))
 
                 #Create table from scratch for this repo.
@@ -130,13 +131,17 @@ def update_remote():
                         raise RepoError('An application does not have any usable language')
 
                     #These fields will not be present for every app.
-                    opt_field = {'author':None, 'vendor':None, 'icon':None}
+                    #Note that 'md5' is mandatory in repo version 1.1.
+                    #However, I get full compatibility with 1.0 and 1.1 by just
+                    #leaving it optional.  Just don't rely on this code to
+                    #fully validate your repository!
+                    opt_field = {'author':None, 'vendor':None, 'md5':None, 'icon':None}
                     for i in opt_field.iterkeys():
                         try: opt_field[i] = app[i]
                         except KeyError: pass
 
                     c.execute("""Insert Or Replace Into "%s" Values
-                        (?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
+                        (?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
                         ( app['id'],
                         app['version']['major'],
                         app['version']['minor'],
@@ -147,6 +152,7 @@ def update_remote():
                         description,
                         opt_field['author'],
                         opt_field['vendor'],
+                        opt_field['md5'],
                         opt_field['icon'], None) )
                     #TODO: Holy crap!  Forgot categories!
                     #TODO: make sure no required fields are missing. covered by try and Not Null?
