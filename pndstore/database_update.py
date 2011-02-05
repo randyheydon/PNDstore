@@ -52,6 +52,7 @@ def open_repos():
             c.execute('Select etag,last_modified From "%s" Where url=?'
                 %REPO_INDEX_TABLE, (table_id,) )
             result = c.fetchone()
+
             if result is None:
                 #This repo is not yet in the index (it's the first time it's
                 #been checked), so make an empty entry for it.
@@ -59,25 +60,22 @@ def open_repos():
                     %REPO_INDEX_TABLE, (table_id,) )
                 result = (None, None)
             etag, last_modified = result
+
             #Do a conditional get.
-            req = urllib2.Request(url)
-            req.add_header('If-None-Match', etag)
-            req.add_header('If-Modified-Since', last_modified)
+            req = urllib2.Request(url, headers={
+                'If-None-Match':etag, 'If-Modified-Since':last_modified})
             class NotModifiedHandler(urllib2.BaseHandler):
                 def http_error_304(self, req, fp, code, message, headers):
                     return 304
             opener = urllib2.build_opener(NotModifiedHandler())
             url_handle = opener.open(req)
+
             #If no error, add to list to be read by update_remote
             if url_handle != 304:
                 repos.append(url_handle)
-                #Update latest etag/last-modified.
-                #Should this be left until update_remote completes?
-                headers = url_handle.info()
-                etag_new = headers.getheader('ETag')
-                last_modified_new = headers.getheader('Last-Modified')
-                c.execute('Update "%s" Set etag=?,last_modified=? Where url=?'
-                    %REPO_INDEX_TABLE, (etag_new, last_modified_new, table_id) )
+
+        #TODO: If a repo gets removed from the cfg, perhaps this function
+        #should remove its index entry and drop its table.
 
     return repos
 
@@ -90,13 +88,13 @@ def update_remote():
     c = db.cursor()
     repos = open_repos()
     try:
-        for i in repos:
+        for r in repos:
 
             #Parse JSON.
             #TODO: Is there any way to gracefully handle a malformed feed?
-            try: repo = json.load(i)
+            try: repo = json.load(r)
             except ValueError:
-                raise RepoError('Malformed JSON file from %s'%i.geturl())
+                raise RepoError('Malformed JSON file from %s'%r.url)
 
             try: 
                 #Check it's the right version.
@@ -109,9 +107,10 @@ def update_remote():
                 #Drops it first so no old entries get left behind.
                 #TODO: Yes, there are probably more efficient ways than
                 #dropping the whole thing, whatever, I'll get to it.
-                table = sanitize_sql(repo["repository"]["name"])
+                #FIXME: Will r.url give the same url listed in the cfg?
+                table = sanitize_sql(r.url)
                 if table == LOCAL_TABLE or table == REPO_INDEX_TABLE:
-                    raise RepoError('Cannot handle a repo named "%s"; name is reserved for internal use.'%LOCAL_TABLE)
+                    raise RepoError('Cannot handle a repo named "%s"; name is reserved for internal use.'%table)
                 c.execute('Drop Table If Exists "%s"' % table)
                 create_table(c, table)
 
@@ -157,6 +156,15 @@ def update_remote():
                     #TODO: Holy crap!  Forgot categories!
                     #TODO: make sure no required fields are missing. covered by try and Not Null?
                     #TODO: Don't erase icon_cache if icon hasn't changed.
+
+                #Now repo is all updated, let the index know its etag/last-modified.
+                headers = r.info()
+                c.execute('Update "%s" Set name=?, etag=?,last_modified=? Where url=?'
+                    %REPO_INDEX_TABLE, (
+                        repo['repository']['name'],
+                        headers.getheader('ETag'),
+                        headers.getheader('Last-Modified'),
+                        table) )
 
             except KeyError:
                 raise RepoError('A required field is missing from this repository')

@@ -164,7 +164,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         db = sqlite3.connect(options.get_database())
         db.row_factory = sqlite3.Row
         #Check that database has correct entries.
-        c = db.execute('Select * From "first json"')
+        c = db.execute('Select * From "%s"'%options.get_repos()[0])
         i = c.fetchone()
         self.assertEqual(i['id'], 'viceVIC.pickle')
         self.assertEqual(i['version_major'], 4)
