@@ -2,7 +2,7 @@ import options, urllib2, sqlite3, json, ctypes
 
 #This module currently supports these versions of the PND repository
 #specification as seen at http://pandorawiki.org/PND_repository_specification
-REPO_VERSION = (1.0, 1.1)
+REPO_VERSION = (1.0, 1.1, 1.2)
 
 LOCAL_TABLE = 'local'
 REPO_INDEX_TABLE = 'repo_index'
@@ -19,18 +19,18 @@ def sanitize_sql(name):
 def create_table(cursor, name):
     name = sanitize_sql(name)
     cursor.execute("""Create Table If Not Exists "%s" (
-        id Primary Key,
-        version_major Int Not Null,
-        version_minor Int Not Null,
-        version_release Int Not Null,
-        version_build Int Not Null,
-        uri Not Null,
-        title Not Null,
-        description Not Null,
-        author,
-        vendor,
-        md5,
-        icon,
+        id Text Primary Key,
+        version_major Text Not Null,
+        version_minor Text Not Null,
+        version_release Text Not Null,
+        version_build Text Not Null,
+        uri Text Not Null,
+        title Text Not Null,
+        description Text Not Null,
+        author Text,
+        vendor Text,
+        md5 Text,
+        icon Text,
         icon_cache Buffer
         )""" % name)
     #TODO: Holy crap!  Forgot categories!
@@ -139,6 +139,9 @@ def update_remote():
                         try: opt_field[i] = app[i]
                         except KeyError: pass
 
+                    #As of repo version 1.2, version numbers are strings, not
+                    #just ints.  But the columns' text affinity autoconverts
+                    #them as necessary.
                     c.execute("""Insert Or Replace Into "%s" Values
                         (?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
                         ( app['id'],

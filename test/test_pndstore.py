@@ -82,10 +82,10 @@ class TestDatabaseUpdate(unittest.TestCase):
     {
       "id":        "viceVIC.pickle",
       "version": {
-        "major":   4,
-        "minor":   2,
-        "release": 1,
-        "build":   3
+        "major":   "4",
+        "minor":   "2",
+        "release": "1",
+        "build":   "3"
       },
       "author":   "Ported by Pickle",
       "vendor":    "dflemstr",
@@ -105,10 +105,10 @@ class TestDatabaseUpdate(unittest.TestCase):
     {
       "id":        "Different VICE",
       "version": {
-        "major":   9,
-        "minor":   3,
-        "release": 3,
-        "build":   6
+        "major":   "9",
+        "minor":   "3b",
+        "release": "3",
+        "build":   "6"
       },
       "vendor":    "Tempel",
       "uri":       "http://example.org/test2.pnd",
@@ -153,7 +153,7 @@ class TestDatabaseUpdate(unittest.TestCase):
 
         for i in repo_files:
             with open(i,'w') as repo:
-                repo.write(self.repotxt % (os.path.basename(i).replace('.',' '), 1.1))
+                repo.write(self.repotxt % (os.path.basename(i).replace('.',' '), 1.2))
 
     def tearDown(self):
         shutil.rmtree(options.working_dir)
@@ -167,10 +167,10 @@ class TestDatabaseUpdate(unittest.TestCase):
         c = db.execute('Select * From "%s"'%options.get_repos()[0])
         i = c.fetchone()
         self.assertEqual(i['id'], 'viceVIC.pickle')
-        self.assertEqual(i['version_major'], 4)
-        self.assertEqual(i['version_minor'], 2)
-        self.assertEqual(i['version_release'], 1)
-        self.assertEqual(i['version_build'], 3)
+        self.assertEqual(i['version_major'], '4')
+        self.assertEqual(i['version_minor'], '2')
+        self.assertEqual(i['version_release'], '1')
+        self.assertEqual(i['version_build'], '3')
         self.assertEqual(i['uri'], "http://example.org/test.pnd")
         self.assertEqual(i['title'], "Vice xVIC")
         self.assertEqual(i['description'], "A VIC Emulator.")
@@ -181,10 +181,10 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['icon_cache'], None)
         i = c.fetchone()
         self.assertEqual(i['id'], 'Different VICE')
-        self.assertEqual(i['version_major'], 9)
-        self.assertEqual(i['version_minor'], 3)
-        self.assertEqual(i['version_release'], 3)
-        self.assertEqual(i['version_build'], 6)
+        self.assertEqual(i['version_major'], '9')
+        self.assertEqual(i['version_minor'], '3b')
+        self.assertEqual(i['version_release'], '3')
+        self.assertEqual(i['version_build'], '6')
         self.assertEqual(i['uri'], "http://example.org/test2.pnd")
         self.assertEqual(i['title'], "Vice xVIC, eh?")
         self.assertEqual(i['description'], "It's not prejudice if I'm Canadian, right?!")
