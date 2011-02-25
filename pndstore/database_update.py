@@ -193,4 +193,15 @@ def update_local():
     #pnd_pndfiles.h: pnd_pnd_mount for getting screenshots from within.
     #all of pnd_pxml.h for information from a PXML.
     #pnd_tinyxml.h: pnd_pxml_parse for exactly what it says.
+
+    #Import external module with prototypes and stuff defined, I guess.
+    #Get conf searchpath with conf_query_searchpath
+    #Get specific conf file with conf_fetch_by_name
+    #   Use filename=apps for full searchpath, desktop or menu for respective searchpaths (future reference)
+    #/Get PND searchpath with conf_get_as_char, where key=autodiscovery.searchpath
+    #/Find files with disco_search
+    #/Iterate through files with box_get_head and box_get_next (with help from box_get_size)
+    #/Get filename of each file with box_get_key
+    #Extract PXML handle from PND with pxml_get_by_path
+    #Iterate through handle and parse with the various pxml_get_*
     pass

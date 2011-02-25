@@ -1,10 +1,15 @@
 #!/usr/bin/env python2
-"""Tests the various core (non-gui-related) elements of pndstore."""
+"""Tests the various core (non-gui-related) elements of pndstore.
+For many of these tests to work, libpnd.so.1 must be loadable.  Make sure it's
+installed (ie: on a Pandora), or accessible by LD_LIBRARY_PATH."""
 import sys
 sys.path.insert(0, '..')
 
 import unittest, shutil, os.path, locale, sqlite3
-from pndstore import options, database_update, database_query
+from pndstore import options, database_update, database_query, libpnd
+
+# Find/store files needed for testing here.
+testfiles = os.path.join(os.path.dirname(__file__), 'testfiles')
 
 
 
@@ -215,6 +220,46 @@ class TestDatabaseUpdate(unittest.TestCase):
     def testUpdateLocal(self):
         database_update.update_local()
         #TODO: Check that database has correct entries.
+
+
+
+class TestLibpnd(unittest.TestCase):
+
+    def testConfig(self):
+        #This conf_query_searchpath test is brittle; it'll break if libpnd
+        #changes its default behaviour, even though this won't cause problems.
+        self.assertEqual(libpnd.conf_query_searchpath(),
+            '/media/*/pandora/conf:/etc/pandora/conf:./testdata/conf',
+            "This failure could indicate a change in the behaviour of libpnd, rather than a failure in the Python wrapper.  Check that.")
+        conf = libpnd.conf_fetch_by_name('apps', testfiles)
+        self.assertEqual(libpnd.conf_get_as_char(conf, 'autodiscovery.searchpath'),
+            '/media/*/pandora/apps:/media/*/pandora/desktop:/media/*/pandora/menu:/usr/pandora/apps')
+
+
+    def testDiscovery(self):
+        search = libpnd.disco_search(testfiles, None)
+        n = libpnd.box_get_size(search)
+        self.assertEqual(n, 3)
+
+        node = libpnd.box_get_head(search)
+        pnds = [libpnd.box_get_key(node)]
+        for i in xrange(n-1):
+            node = libpnd.box_get_next(node)
+            pnds.append(libpnd.box_get_key(node))
+        self.assertItemsEqual(map(os.path.basename, pnds),
+            ('BubbMan2.pnd', 'Sparks-0.4.2.pnd', 'The Lonely Tower-2.2.pnd'))
+
+
+    def testParsing(self):
+        pass
+        pxml = libpnd.pxml_get_by_path(
+            os.path.join(testfiles, 'The Lonely Tower-2.2.pnd'))
+        self.assertNotEqual(pxml, 0) # Check for failed parsing so we don't segfault.
+        for app in pxml:
+            if app == 0: break
+            self.assertEqual(libpnd.pxml_get_unique_id(app), 'the-lonely-tower')
+            self.assertEqual(libpnd.pxml_get_app_name(app, 'en_US'), 'The Lonely Tower')
+            libpnd.pxml_delete(app)
 
 
 
