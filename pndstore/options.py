@@ -48,15 +48,20 @@ def get_repos():
 
 
 
+def get_locale_default():
+    return locale.getdefaultlocale()[0]
+
+
 def get_locale():
     """Returns a list of locales in the given order.  If none are specified, first preference is the system locale.  The PND spec requires that en_US always be available for titles and descriptions, so that will always be the last entry in the list (it shouldn't matter if it appears multiple times in the list)."""
     #TODO: Perhaps validate language codes?
     #TODO: What should be done for language codes without country codes?
     with open(get_cfg()) as cfg:
-        try:
-            locales = jload(cfg)['locales']
-        except KeyError:
-            locales = [locale.getdefaultlocale()[0]]
+        locales = jload(cfg)['locales']
+
+    if DEFAULT_KEY in locales:
+        i = locales.index(DEFAULT_KEY)
+        locales[i] = get_locale_default()
 
     #The en_US locale should be available in all PNDs, so it should be a last resort.
     locales.append('en_US')

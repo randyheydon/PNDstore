@@ -49,7 +49,9 @@ class TestOptions(unittest.TestCase):
         "http://secondurl",
         "ftp://thirdurl",
         "http://fourthurl"
-    ]
+    ],
+    "locales": ["default"],
+    "searchpath": ["default"]
 }""")
         self.assertEqual(options.get_repos(), ['file://firsturl',
             'http://secondurl','ftp://thirdurl','http://fourthurl'])
@@ -69,7 +71,8 @@ class TestOptions(unittest.TestCase):
     "locales": [
         "en_CA",
         "de_DE"
-    ]
+    ],
+    "searchpath": ["default"]
 }""")
         self.assertEquals(options.get_locale(), ['en_CA','de_DE','en_US'])
 
@@ -89,9 +92,7 @@ class TestOptions(unittest.TestCase):
     "repositories": [
         "file://firsturl"
     ],
-    "locales": [
-        "en_US"
-    ],
+    "locales": ["default"],
     "searchpath": [
         "/lolbuts",
         "/home/places/things/stuff/"
@@ -173,7 +174,8 @@ class TestDatabaseUpdate(unittest.TestCase):
     "locales": [
         "en_CA",
         "de_DE"
-    ]
+    ],
+    "searchpath": ["default"]
 }""")
 
     def setUp(self):
