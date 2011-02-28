@@ -8,7 +8,7 @@ setup(
     long_description = open('README.txt').read(),
     author = 'Randy Heydon',
     author_email = 'randy.heydon@clockworklab.net',
-    url = 'http://randy.heydon.selfip.net/Programs/PNDstore/', #TODO: check url
+    url = 'https://github.com/Tempel/PNDstore',
     packages = ['pndstore', 'pndstore_gui'],
     package_data = {'pndstore': ['cfg/*']},
     scripts = ['PNDstore', 'pndst'],

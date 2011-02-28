@@ -71,11 +71,11 @@ def get_locale():
 
 def get_searchpath_default():
     conf_path = libpnd.conf_query_searchpath()
-    if conf_path is None:
+    if not conf_path:
         raise ValueError("Your install of libpnd isn't behaving right! pnd_conf_query_searchpath has returned null.")
 
     conf = libpnd.conf_fetch_by_name('apps', conf_path)
-    if conf is 0:
+    if not conf:
         raise ValueError("Your install of libpnd isn't behaving right!  pnd_conf_fetch_by_name has returned null.")
 
     return libpnd.conf_get_as_char(conf, 'autodiscovery.searchpath').split(':')

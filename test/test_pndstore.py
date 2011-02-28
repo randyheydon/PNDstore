@@ -2,10 +2,10 @@
 """Tests the various core (non-gui-related) elements of pndstore.
 For many of these tests to work, libpnd.so.1 must be loadable.  Make sure it's
 installed (ie: on a Pandora), or accessible by LD_LIBRARY_PATH."""
-import sys
-sys.path.insert(0, '..')
-
 import unittest, shutil, os.path, locale, sqlite3
+
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from pndstore import options, database_update, database_query, libpnd
 
 # Find/store files needed for testing here.
@@ -298,6 +298,8 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['md5'], '0314d0f7055052cd91ec608d63acad2a')
         self.assertEqual(i['icon'],
             'lonelytower/assets/male-brunette-angry-listening-notrans.png')
+        # TODO: An individual test for update_local_path.
+        # TODO: Test for bad conditions that could cause segfaults.
 
 
 
