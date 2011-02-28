@@ -1,4 +1,4 @@
-import options, urllib2, sqlite3, json, ctypes
+import options, libpnd, urllib2, sqlite3, json, md5
 
 #This module currently supports these versions of the PND repository
 #specification as seen at http://pandorawiki.org/PND_repository_specification
@@ -179,29 +179,63 @@ def update_remote():
         c.close()
 
 
-def update_local():
-    #Useful libpnd functions:
-    #pnd_apps.h: get_appdata_path for when we want a complete removal
-    #   (this will be needed elsewhere later)
-    #pnd_conf.h: pnd_conf_query_searchpath if we happen to need libpnd configs
-    #pnd_desktop.h: pnd_emit_icon_to_buffer to get an icon for caching.
-    #   pnd_map_dotdesktop_categories ?
-    #pnd_discovery.h: pnd_disco_search gives list of valid apps.  PERFECT.
-    #pnd_locate.h: pnd_locate_filename for finding path of specific PND.
-    #pnd_notify.h: everything in here for watching for file changes.
-    #   or perhaps use dbus as per pnd_dbusnotify.h
-    #pnd_pndfiles.h: pnd_pnd_mount for getting screenshots from within.
-    #all of pnd_pxml.h for information from a PXML.
-    #pnd_tinyxml.h: pnd_pxml_parse for exactly what it says.
 
-    #Import external module with prototypes and stuff defined, I guess.
-    #Get conf searchpath with conf_query_searchpath
-    #Get specific conf file with conf_fetch_by_name
-    #   Use filename=apps for full searchpath, desktop or menu for respective searchpaths (future reference)
-    #/Get PND searchpath with conf_get_as_char, where key=autodiscovery.searchpath
-    #/Find files with disco_search
-    #/Iterate through files with box_get_head and box_get_next (with help from box_get_size)
-    #/Get filename of each file with box_get_key
-    #Extract PXML handle from PND with pxml_get_by_path
-    #Iterate through handle and parse with the various pxml_get_*
-    pass
+def update_local_file(path):
+    """Adds an entry to the local database based on the PND found at "path"."""
+    pxml = libpnd.pxml_get_by_path(path)
+    if not pxml:
+        raise ValueError("%s doesn't seem to be a real PND file." % path)
+    with open(path, 'rb') as p: m = md5.new(p.read())
+
+    # Extract all the useful information from the PND and add it to the table.
+    # NOTE: For now, only considers the first app in the PND, since that's what
+    # milkshake's repo does.  Will likely need to expand it in the future.
+    app = pxml[0]
+    with sqlite3.connect(options.get_database()) as db:
+        c = db.cursor()
+        c.execute("""Insert Or Replace Into "%s" Values
+            (?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
+            ( libpnd.pxml_get_unique_id(app),
+            libpnd.pxml_get_version_major(app),
+            libpnd.pxml_get_version_minor(app),
+            libpnd.pxml_get_version_release(app),
+            libpnd.pxml_get_version_build(app),
+            path,
+            # TODO: I'm not sure how libpnd handles locales exactly...
+            libpnd.pxml_get_app_name(app, options.get_locale()[0]),
+            libpnd.pxml_get_app_description(app, options.get_locale()[0]),
+            libpnd.pxml_get_author_name(app),
+            None,
+            m.hexdigest(),
+            libpnd.pxml_get_icon(app),
+            None) ) # TODO: Get icon buffer with pnd_desktop's pnd_emit_icon_to_buffer
+    libpnd.pxml_delete(app)
+
+
+def update_local():
+    """Adds a table to the database, adding an entry for each application found in the searchpath."""
+    # Open database connection.
+    with sqlite3.connect(options.get_database()) as db:
+        db.row_factory = sqlite3.Row
+        c = db.cursor()
+        # Create table from scratch to hold list of all installed PNDs.
+        # Drops it first so no old entries get left behind.
+        # TODO: Yes, there are probably more efficient ways than dropping
+        # the whole thing, whatever, I'll get to it.
+        c.execute('Drop Table If Exists "%s"' % LOCAL_TABLE)
+        create_table(c, LOCAL_TABLE)
+
+    # Find PND files on searchpath.
+    searchpath = ':'.join(options.get_searchpath())
+    search = libpnd.disco_search(searchpath, None)
+    if not search:
+        raise ValueError("Your install of libpnd isn't behaving right!  pnd_disco_search has returned null.")
+
+    # If at least one PND is found, add each to the database.
+    n = libpnd.box_get_size(search)
+    if n > 0:
+        node = libpnd.box_get_head(search)
+        update_local_file(libpnd.box_get_key(node))
+        for i in xrange(n-1):
+            node = libpnd.box_get_next(node)
+            update_local_file(libpnd.box_get_key(node))

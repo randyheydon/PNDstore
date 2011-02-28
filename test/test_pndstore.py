@@ -168,15 +168,15 @@ class TestDatabaseUpdate(unittest.TestCase):
     cfg_text = (
 """{
     "repositories": [
-        "file://%s",
-        "file://%s"
+        "file://%%s",
+        "file://%%s"
     ],
     "locales": [
         "en_CA",
         "de_DE"
     ],
-    "searchpath": ["default"]
-}""")
+    "searchpath": ["%(testfiles)s"]
+}""" % {'testfiles': testfiles})
 
     def setUp(self):
         options.working_dir = 'temp'
@@ -184,7 +184,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         #Create some local repository files for testing.
         repo_files = ('temp/first.json', 'temp/second.json')
         with open(options.get_cfg(),'w') as cfg:
-            cfg.write(self.cfg_text % tuple([os.path.abspath(i) for i in repo_files]) )
+            cfg.write(self.cfg_text % tuple(map(os.path.abspath, repo_files)))
 
         for i in repo_files:
             with open(i,'w') as repo:
@@ -249,7 +249,55 @@ class TestDatabaseUpdate(unittest.TestCase):
 
     def testUpdateLocal(self):
         database_update.update_local()
-        #TODO: Check that database has correct entries.
+        db = sqlite3.connect(options.get_database())
+        db.row_factory = sqlite3.Row
+        #Check that database has correct entries.
+        c = db.execute('Select * From "%s" Where id="bubbman2"'
+            %database_update.LOCAL_TABLE)
+        i = c.fetchone()
+        self.assertEqual(i['id'], 'bubbman2')
+        self.assertEqual(i['version_major'], '1')
+        self.assertEqual(i['version_minor'], '1')
+        self.assertEqual(i['version_release'], '2')
+        self.assertEqual(i['version_build'], '0')
+        self.assertEqual(i['uri'], os.path.join(testfiles, 'BubbMan2.pnd'))
+        self.assertEqual(i['title'], "BubbMan2")
+        self.assertEqual(i['description'], "A solo entry by pymike for PyWeek #8")
+        self.assertEqual(i['author'], "pymike")
+        self.assertEqual(i['vendor'], None)
+        self.assertEqual(i['md5'], '65d85e7d278427e569c76b36884027ad')
+        self.assertEqual(i['icon'], 'data/logo.png')
+        c = db.execute('Select * From "%s" Where id="sparks"'
+            %database_update.LOCAL_TABLE)
+        i = c.fetchone()
+        self.assertEqual(i['id'], 'sparks')
+        self.assertEqual(i['version_major'], '0')
+        self.assertEqual(i['version_minor'], '4')
+        self.assertEqual(i['version_release'], '2')
+        self.assertEqual(i['version_build'], '0')
+        self.assertEqual(i['uri'], os.path.join(testfiles, 'Sparks-0.4.2.pnd'))
+        self.assertEqual(i['title'], "Sparks")
+        self.assertEqual(i['description'], "A vectorial shooter")
+        self.assertEqual(i['author'], "Haltux")
+        self.assertEqual(i['vendor'], None)
+        self.assertEqual(i['md5'], 'fb10014578bb3f0c0ae8e88a0fd81121')
+        self.assertEqual(i['icon'], 'icon.png')
+        c = db.execute('Select * From "%s" Where id="the-lonely-tower"'
+            %database_update.LOCAL_TABLE)
+        i = c.fetchone()
+        self.assertEqual(i['id'], 'the-lonely-tower')
+        self.assertEqual(i['version_major'], '2')
+        self.assertEqual(i['version_minor'], '2')
+        self.assertEqual(i['version_release'], '0')
+        self.assertEqual(i['version_build'], '0')
+        self.assertEqual(i['uri'], os.path.join(testfiles, 'The Lonely Tower-2.2.pnd'))
+        self.assertEqual(i['title'], "The Lonely Tower")
+        self.assertEqual(i['description'], "A dumb arty game made for a competition.")
+        self.assertEqual(i['author'], "Randy Heydon")
+        self.assertEqual(i['vendor'], None)
+        self.assertEqual(i['md5'], '0314d0f7055052cd91ec608d63acad2a')
+        self.assertEqual(i['icon'],
+            'lonelytower/assets/male-brunette-angry-listening-notrans.png')
 
 
 
@@ -281,7 +329,6 @@ class TestLibpnd(unittest.TestCase):
 
 
     def testParsing(self):
-        pass
         pxml = libpnd.pxml_get_by_path(
             os.path.join(testfiles, 'The Lonely Tower-2.2.pnd'))
         self.assertNotEqual(pxml, 0) # Check for failed parsing so we don't segfault.
