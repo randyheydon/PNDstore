@@ -9,7 +9,7 @@ import unittest, shutil, os.path, locale, sqlite3
 from pndstore import options, database_update, database_query, libpnd
 
 # Find/store files needed for testing here.
-testfiles = os.path.join(os.path.dirname(__file__), 'testfiles')
+testfiles = os.path.join(os.path.dirname(__file__), 'testdata')
 
 
 
@@ -72,6 +72,34 @@ class TestOptions(unittest.TestCase):
     ]
 }""")
         self.assertEquals(options.get_locale(), ['en_CA','de_DE','en_US'])
+
+
+    def testSearchpath(self):
+        # This get_searchpath test is brittle; it'll break if libpnd changes
+        # its default behaviour, even though this won't cause problems.
+        self.assertItemsEqual(options.get_searchpath(),
+            ['/media/*/pandora/apps','/media/*/pandora/desktop',
+            '/media/*/pandora/menu','/usr/pandora/apps'],
+            "This failure could indicate a change in the behaviour of libpnd, rather than a failure in the Python wrapper.  Check that."
+        )
+
+        with open(options.get_cfg(), 'w') as cfg:
+            cfg.write(
+"""{
+    "repositories": [
+        "file://firsturl"
+    ],
+    "locales": [
+        "en_US"
+    ],
+    "searchpath": [
+        "/lolbuts",
+        "/home/places/things/stuff/"
+    ]
+}""")
+        self.assertItemsEqual(options.get_searchpath(), ['/lolbuts',
+            '/home/places/things/stuff/']
+        )
 
 
 
@@ -231,7 +259,7 @@ class TestLibpnd(unittest.TestCase):
         self.assertEqual(libpnd.conf_query_searchpath(),
             '/media/*/pandora/conf:/etc/pandora/conf:./testdata/conf',
             "This failure could indicate a change in the behaviour of libpnd, rather than a failure in the Python wrapper.  Check that.")
-        conf = libpnd.conf_fetch_by_name('apps', testfiles)
+        conf = libpnd.conf_fetch_by_name('apps', libpnd.conf_query_searchpath())
         self.assertEqual(libpnd.conf_get_as_char(conf, 'autodiscovery.searchpath'),
             '/media/*/pandora/apps:/media/*/pandora/desktop:/media/*/pandora/menu:/usr/pandora/apps')
 

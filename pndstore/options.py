@@ -4,11 +4,15 @@ Concurrency note: as long as working_dir and the config file already exist, all 
 
 from json import load as jload
 import shutil, os, locale
+import libpnd
 
 #If a different working directory is to be used, the script importing this
 #module should modify this value before calling any functions here (or using
 #other modules that rely on them).
 working_dir = os.path.expanduser('~/.pndstore')
+
+
+DEFAULT_KEY = 'default'
 
 
 def get_working_dir():
@@ -57,3 +61,28 @@ def get_locale():
     #The en_US locale should be available in all PNDs, so it should be a last resort.
     locales.append('en_US')
     return locales
+
+
+
+def get_searchpath_default():
+    conf_path = libpnd.conf_query_searchpath()
+    if conf_path is None:
+        raise ValueError("Your install of libpnd isn't behaving right! pnd_conf_query_searchpath has returned null.")
+
+    conf = libpnd.conf_fetch_by_name('apps', conf_path)
+    if conf is 0:
+        raise ValueError("Your install of libpnd isn't behaving right!  pnd_conf_fetch_by_name has returned null.")
+
+    return libpnd.conf_get_as_char(conf, 'autodiscovery.searchpath').split(':')
+
+
+def get_searchpath():
+    #TODO: Perhaps validate paths?
+    with open(get_cfg()) as cfg:
+        searchpath = jload(cfg)['searchpath']
+
+    if DEFAULT_KEY in searchpath:
+        i = searchpath.index(DEFAULT_KEY)
+        searchpath[i:i+1] = get_searchpath_default()
+
+    return searchpath
