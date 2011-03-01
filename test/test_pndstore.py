@@ -157,7 +157,8 @@ class TestDatabaseUpdate(unittest.TestCase):
         }
       },
       "categories": [
-        "Game"
+        "Game",
+        "Emulator"
       ],
       "md5": "d3de733c68b55538bb9c9ff46699c154",
       "icon":     "http://example.org/test2.png"
@@ -211,6 +212,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['description'], "A VIC Emulator.")
         self.assertEqual(i['author'], "Ported by Pickle")
         self.assertEqual(i['vendor'], "dflemstr")
+        self.assertEqual(i['categories'], "Game")
         self.assertEqual(i['md5'], '55538bb9c9ff46699c154d3de733c68b')
         self.assertEqual(i['icon'], "http://example.org/test.png")
         self.assertEqual(i['icon_cache'], None)
@@ -225,6 +227,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['description'], "It's not prejudice if I'm Canadian, right?!")
         self.assertEqual(i['author'], None)
         self.assertEqual(i['vendor'], "Tempel")
+        self.assertEqual(i['categories'], "Game:Emulator")
         self.assertEqual(i['md5'], 'd3de733c68b55538bb9c9ff46699c154')
         self.assertEqual(i['icon'], "http://example.org/test2.png")
         self.assertEqual(i['icon_cache'], None)
@@ -263,6 +266,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['uri'], os.path.join(testfiles, 'BubbMan2.pnd'))
         self.assertEqual(i['title'], "BubbMan2")
         self.assertEqual(i['description'], "A solo entry by pymike for PyWeek #8")
+        self.assertEqual(i['categories'], "Game:ActionGame")
         self.assertEqual(i['author'], "pymike")
         self.assertEqual(i['vendor'], None)
         self.assertEqual(i['md5'], '84c81afa183561f0bb7b2db692646833')
@@ -278,6 +282,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['uri'], os.path.join(testfiles, 'Sparks-0.4.2.pnd'))
         self.assertEqual(i['title'], "Sparks")
         self.assertEqual(i['description'], "A vectorial shooter")
+        self.assertEqual(i['categories'], "Game:ArcadeGame")
         self.assertEqual(i['author'], "Haltux")
         self.assertEqual(i['vendor'], None)
         self.assertEqual(i['md5'], 'fb10014578bb3f0c0ae8e88a0fd81121')
@@ -293,6 +298,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['uri'], os.path.join(testfiles, 'The Lonely Tower-2.2.pnd'))
         self.assertEqual(i['title'], "The Lonely Tower")
         self.assertEqual(i['description'], "A dumb arty game made for a competition.")
+        self.assertEqual(i['categories'], "Game:RolePlaying")
         self.assertEqual(i['author'], "Randy Heydon")
         self.assertEqual(i['vendor'], None)
         self.assertEqual(i['md5'], '0314d0f7055052cd91ec608d63acad2a')

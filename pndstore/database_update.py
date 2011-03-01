@@ -27,13 +27,13 @@ def create_table(cursor, name):
         uri Text Not Null,
         title Text Not Null,
         description Text Not Null,
+        categories Text,
         author Text,
         vendor Text,
         md5 Text,
         icon Text,
         icon_cache Buffer
         )""" % name)
-    #TODO: Holy crap!  Forgot categories!
 
 
 def open_repos():
@@ -143,7 +143,7 @@ def update_remote():
                     #just ints.  But the columns' text affinity autoconverts
                     #them as necessary.
                     c.execute("""Insert Or Replace Into "%s" Values
-                        (?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
+                        (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
                         ( app['id'],
                         app['version']['major'],
                         app['version']['minor'],
@@ -152,11 +152,11 @@ def update_remote():
                         app['uri'],
                         title,
                         description,
+                        ':'.join(app['categories']),
                         opt_field['author'],
                         opt_field['vendor'],
                         opt_field['md5'],
                         opt_field['icon'], None) )
-                    #TODO: Holy crap!  Forgot categories!
                     #TODO: make sure no required fields are missing. covered by try and Not Null?
                     #TODO: Don't erase icon_cache if icon hasn't changed.
 
@@ -191,10 +191,15 @@ def update_local_file(path):
     # NOTE: For now, only considers the first app in the PND, since that's what
     # milkshake's repo does.  Will likely need to expand it in the future.
     app = pxml[0]
+
+    categories = ( libpnd.pxml_get_main_category(app), libpnd.pxml_get_subcategory1(app),
+        libpnd.pxml_get_subcategory2(app), libpnd.pxml_get_altcategory(app),
+        libpnd.pxml_get_altsubcategory1(app), libpnd.pxml_get_altsubcategory2(app) )
+
     with sqlite3.connect(options.get_database()) as db:
         c = db.cursor()
         c.execute("""Insert Or Replace Into "%s" Values
-            (?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
+            (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
             ( libpnd.pxml_get_unique_id(app),
             libpnd.pxml_get_version_major(app),
             libpnd.pxml_get_version_minor(app),
@@ -204,8 +209,9 @@ def update_local_file(path):
             # TODO: I'm not sure how libpnd handles locales exactly...
             libpnd.pxml_get_app_name(app, options.get_locale()[0]),
             libpnd.pxml_get_app_description(app, options.get_locale()[0]),
+            ':'.join([i for i in categories if i is not None]),
             libpnd.pxml_get_author_name(app),
-            None,
+            None, # I see no use for "vendor" on installed apps.
             m.hexdigest(),
             libpnd.pxml_get_icon(app),
             None) ) # TODO: Get icon buffer with pnd_desktop's pnd_emit_icon_to_buffer
