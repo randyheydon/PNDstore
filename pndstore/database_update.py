@@ -6,7 +6,7 @@ import options, libpnd, urllib2, sqlite3, json, md5
 
 #This module currently supports these versions of the PND repository
 #specification as seen at http://pandorawiki.org/PND_repository_specification
-REPO_VERSION = (1.0, 1.1, 1.2)
+REPO_VERSION = (1.0, 1.1, 1.2, 1.3)
 
 LOCAL_TABLE = 'local'
 REPO_INDEX_TABLE = 'repo_index'
@@ -133,11 +133,11 @@ def update_remote():
                     if title is None or description is None:
                         raise RepoError('An application does not have any usable language')
 
-                    #These fields will not be present for every app.
-                    #Note that 'md5' is mandatory in repo version 1.1.
-                    #However, I get full compatibility with 1.0 and 1.1 by just
-                    #leaving it optional.  Just don't rely on this code to
-                    #fully validate your repository!
+                    # These fields will not be present for every app.
+                    # Note that 'md5' is mandatory in repo version 1.1, and
+                    # 'author' in 1.3.  However, I get full compatibility with
+                    # all versions by just leaving them optional.  Just don't
+                    # rely on this code to fully validate your repository!
                     opt_field = {'author':None, 'vendor':None, 'md5':None, 'icon':None}
                     for i in opt_field.iterkeys():
                         try: opt_field[i] = app[i]

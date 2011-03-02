@@ -8,6 +8,9 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from pndstore import options, database_update, database_query, libpnd
 
+# Latest repo version; only latest gets tested (for now).
+repo_version = 1.3
+
 # Find/store files needed for testing here.
 testfiles = os.path.join(os.path.dirname(__file__), 'testdata')
 
@@ -189,7 +192,8 @@ class TestDatabaseUpdate(unittest.TestCase):
 
         for i in repo_files:
             with open(i,'w') as repo:
-                repo.write(self.repotxt % (os.path.basename(i).replace('.',' '), 1.2))
+                repo.write(self.repotxt % (
+                    os.path.basename(i).replace('.',' '), repo_version))
 
     def tearDown(self):
         shutil.rmtree(options.working_dir)
