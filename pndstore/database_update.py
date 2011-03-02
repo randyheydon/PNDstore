@@ -1,3 +1,7 @@
+"""This module populates the app database with installed and available applications.  Consumers of this module will likely only need the functions update_remote and update_local (and maybe update_local_file, if you're feeling fancy).
+
+Concurrency note: Most functions here make changes to the database.  However, they all create their own connections and cursors; since sqlite can handle concurrent database writes automatically, these functions should be thread safe."""
+
 import options, libpnd, urllib2, sqlite3, json, md5
 
 #This module currently supports these versions of the PND repository
@@ -196,6 +200,9 @@ def update_local_file(path):
         libpnd.pxml_get_subcategory2(app), libpnd.pxml_get_altcategory(app),
         libpnd.pxml_get_altsubcategory1(app), libpnd.pxml_get_altsubcategory2(app) )
 
+    # TODO: Opening a new connection for each file getting added is probably
+    # inefficient.  Might be better if a connection or cursor object could be
+    # passed in, but a new one could be generated if needed?
     with sqlite3.connect(options.get_database()) as db:
         c = db.cursor()
         c.execute("""Insert Or Replace Into "%s" Values
