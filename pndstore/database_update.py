@@ -24,10 +24,7 @@ def create_table(cursor, name):
     name = sanitize_sql(name)
     cursor.execute("""Create Table If Not Exists "%s" (
         id Text Primary Key,
-        version_major Text Not Null,
-        version_minor Text Not Null,
-        version_release Text Not Null,
-        version_build Text Not Null,
+        version Text Not Null,
         uri Text Not Null,
         title Text Not Null,
         description Text Not Null,
@@ -47,7 +44,7 @@ def open_repos():
         c = db.cursor()
         #Create index for all repositories to track important info.
         c.execute("""Create Table If Not Exists "%s" (
-            url Primary Key, name, etag, last_modified
+            url Text Primary Key, name Text, etag Text, last_modified Text
             )""" % REPO_INDEX_TABLE)
 
         for url in options.get_repos():
@@ -147,12 +144,13 @@ def update_remote():
                     #just ints.  But the columns' text affinity autoconverts
                     #them as necessary.
                     c.execute("""Insert Or Replace Into "%s" Values
-                        (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
+                        (?,?,?,?,?,?,?,?,?,?,?)""" % table,
                         ( app['id'],
-                        app['version']['major'],
-                        app['version']['minor'],
-                        app['version']['release'],
-                        app['version']['build'],
+                        '.'.join( (
+                            app['version']['major'],
+                            app['version']['minor'],
+                            app['version']['release'],
+                            app['version']['build'], ) ),
                         app['uri'],
                         title,
                         description,
@@ -206,12 +204,13 @@ def update_local_file(path):
     with sqlite3.connect(options.get_database()) as db:
         c = db.cursor()
         c.execute("""Insert Or Replace Into "%s" Values
-            (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
+            (?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
             ( libpnd.pxml_get_unique_id(app),
-            libpnd.pxml_get_version_major(app),
-            libpnd.pxml_get_version_minor(app),
-            libpnd.pxml_get_version_release(app),
-            libpnd.pxml_get_version_build(app),
+            '.'.join( (
+                libpnd.pxml_get_version_major(app),
+                libpnd.pxml_get_version_minor(app),
+                libpnd.pxml_get_version_release(app),
+                libpnd.pxml_get_version_build(app), ) ),
             path,
             # TODO: I'm not sure how libpnd handles locales exactly...
             libpnd.pxml_get_app_name(app, options.get_locale()[0]),
