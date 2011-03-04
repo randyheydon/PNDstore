@@ -200,6 +200,7 @@ class TestDatabaseUpdate(unittest.TestCase):
 
 
     def testUpdateRemote(self):
+        # TODO: Rewrite this to use testdata/repo.json?
         database_update.update_remote()
         db = sqlite3.connect(options.get_database())
         db.row_factory = sqlite3.Row
@@ -338,7 +339,122 @@ class TestLibpnd(unittest.TestCase):
 
 
 class TestDatabaseQuery(unittest.TestCase):
-    pass
+    cfg_text = (
+"""{
+    "repositories": ["file://%s"],
+    "locales": ["default"],
+    "searchpath": ["%s"]
+}""" % (os.path.abspath(os.path.join(testfiles, 'repo.json')), testfiles))
+
+    def setUp(self):
+        options.working_dir = 'temp'
+        with open(options.get_cfg(),'w') as cfg:
+            cfg.write(self.cfg_text)
+        database_update.update_remote()
+        database_update.update_local()
+
+    def tearDown(self):
+        shutil.rmtree(options.working_dir)
+
+
+    def testPNDVersion(self):
+        v = database_query.PNDVersion
+        self.assertGreater(v('2.0.0.0'), v('1.999'))
+        self.assertGreater(v('1.1'), v('1.0'))
+        self.assertLess(v('2.0a'), v('2.0'))
+        self.assertLess(v('2.0'), v('2.1a'))
+        self.assertLess(v('2.0a'), v('2.0.1a'))
+        self.assertLess(v('2.0a.1'), v('2.0b'))
+        self.assertLess(v('1.0.3.1'), v('1.1.2.0'))
+
+
+    def testGetRemoteTables(self):
+        # Okay, this may seem like a gratuitous function, but it gets around
+        # DB quoting issues.  This and options.get_repo will not always produce
+        # identical results.
+        self.assertEquals(database_query.get_remote_tables(),
+            options.get_repos())
+
+
+    def testGetAllAvailable(self):
+        database_update.update_local()
+        local = database_update.LOCAL_TABLE
+        remote = database_query.get_remote_tables()[0]
+        with sqlite3.connect(options.get_database()) as db:
+            db.row_factory = sqlite3.Row
+
+            r = database_query.get_all_available('the-lonely-tower')
+            c = db.execute('Select * From "%s" Where id="the-lonely-tower"'
+                % local)
+            self.assertEqual(r[0], c.fetchone())
+            c = db.execute('Select * From "%s" Where id="the-lonely-tower"'
+                % remote)
+            self.assertEqual(r[1], c.fetchone())
+
+            r = database_query.get_all_available('bubbman2')
+            c = db.execute('Select * From "%s" Where id="bubbman2"'
+                % local)
+            self.assertEqual(r[0], c.fetchone())
+            c = db.execute('Select * From "%s" Where id="bubbman2"'
+                % remote)
+            self.assertEqual(r[1], c.fetchone())
+
+            # Not installed locally.
+            r = database_query.get_all_available('zim')
+            self.assertIsNone(r[0])
+            c = db.execute('Select * From "%s" Where id="zim"'
+                % remote)
+            self.assertEqual(r[1], c.fetchone())
+
+            # Not a real package.
+            r = database_query.get_all_available('fakeyfakefake')
+            self.assertIsNone(r[0])
+            self.assertIsNone(r[1])
+
+            # TODO: Test with multiple repos?
+
+
+    def testGetAllAvailableSorted(self):
+        database_update.update_local()
+        local = database_update.LOCAL_TABLE
+        remote = database_query.get_remote_tables()[0]
+        with sqlite3.connect(options.get_database()) as db:
+            db.row_factory = sqlite3.Row
+
+            # Same versions.
+            r = database_query.get_all_available_sorted('the-lonely-tower')
+            c = db.execute('Select * From "%s" Where id="the-lonely-tower"'
+                % local)
+            self.assertEqual(r[0], c.fetchone())
+            c = db.execute('Select * From "%s" Where id="the-lonely-tower"'
+                % remote)
+            self.assertEqual(r[1], c.fetchone())
+
+            # Newer in repo
+            r = database_query.get_all_available_sorted('bubbman2')
+            c = db.execute('Select * From "%s" Where id="bubbman2"'
+                % remote)
+            self.assertEqual(r[0], c.fetchone())
+            c = db.execute('Select * From "%s" Where id="bubbman2"'
+                % local)
+            self.assertEqual(r[1], c.fetchone())
+
+            # Not installed locally.
+            r = database_query.get_all_available_sorted('zim')
+            c = db.execute('Select * From "%s" Where id="zim"'
+                % remote)
+            self.assertEqual(r[0], c.fetchone())
+            self.assertEqual(len(r), 1)
+
+            # Not a real package.
+            r = database_query.get_all_available_sorted('fakeyfakefake')
+            self.assertEqual(len(r), 0)
+
+            # TODO: Test with multiple repos?
+
+
+    def testGetUpdates(self):
+        database_query.get_updates()
 
 
 
