@@ -5,20 +5,40 @@ import os.path
 from optparse import OptionParser
 
 parser = OptionParser()
+
+parser.add_option('--working-dir', '-w',
+    dest='working_dir', default=None,
+    metavar='DIRECTORY', help='find/store config and database in DIRECTORY [default: %default]')
+
 parser.add_option('--update', '-y',
     action='store_true', dest='update', default=False,
     help='update both local and remote databases')
+parser.add_option('--update-remote', '-Y',
+    action='store_true', dest='update_remote', default=False,
+    help='update database of remotely available applications')
 parser.add_option('--update-local',
     action='store_true', dest='update_local', default=False,
     help='update database of locally installed applications')
-parser.add_option('--update-remote',
-    action='store_true', dest='update_remote', default=False,
-    help='update database of remotely available applications')
+
 parser.add_option('--upgrade', '-u',
     action='store_true', dest='upgrade', default=False,
     help='upgrade local applications with latest available')
-parser.add_option('--working-dir', '-w',
-    dest='working_dir', default=os.path.expanduser('~/.pndstore'),
-    metavar='DIRECTORY', help='find/store config and database in DIRECTORY [default: %default]')
 
-print parser.parse_args()
+opts, args = parser.parse_args()
+
+from pndstore import options, database_update, database_query
+
+if opts.working_dir is not None:
+    options.working_dir = opts.working_dir
+
+if opts.update:
+    opts.update_remote = True
+    opts.update_local = True
+if opts.update_local:
+    print "Updating local database...",
+    database_update.update_local()
+    print "Done."
+if opts.update_remote:
+    print "Updating remote database...",
+    database_update.update_remote()
+    print "Done."
