@@ -214,7 +214,7 @@ def update_local_file(path):
             path,
             # TODO: I'm not sure how libpnd handles locales exactly...
             libpnd.pxml_get_app_name(app, options.get_locale()[0]),
-            libpnd.pxml_get_app_description(app, options.get_locale()[0]),
+            libpnd.pxml_get_description(app, options.get_locale()[0]),
             ':'.join([i for i in categories if i is not None]),
             libpnd.pxml_get_author_name(app),
             None, # I see no use for "vendor" on installed apps.
