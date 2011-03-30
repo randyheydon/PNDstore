@@ -6,10 +6,11 @@ import options, libpnd, urllib2, sqlite3, json, md5
 
 #This module currently supports these versions of the PND repository
 #specification as seen at http://pandorawiki.org/PND_repository_specification
-REPO_VERSION = (1.0, 1.1, 1.2, 1.3)
+REPO_VERSION = (2.0,)
 
 LOCAL_TABLE = 'local'
 REPO_INDEX_TABLE = 'repo_index'
+SEPCHAR = ':' # Character that defines list separations in the database.
 
 class RepoError(Exception): pass
 
@@ -25,14 +26,21 @@ def create_table(cursor, name):
     cursor.execute("""Create Table If Not Exists "%s" (
         id Text Primary Key,
         version Text Not Null,
-        uri Text Not Null,
+        author_name Text,
+        author_website Text,
+        author_email Text,
         title Text Not Null,
         description Text Not Null,
-        categories Text,
-        author Text,
-        vendor Text,
-        md5 Text,
         icon Text,
+        uri Text Not Null,
+        md5 Text Not Null,
+        vendor Text,
+        rating Int,
+        applications Text,
+        previewpics Text,
+        licenses Text,
+        source Text,
+        categories Text,
         icon_cache Buffer
         )""" % name)
 
@@ -63,6 +71,7 @@ def open_repos():
             etag, last_modified = result
 
             #Do a conditional get.
+            # TODO: A way to force an update.
             req = urllib2.Request(url, headers={
                 'If-None-Match':etag, 'If-Modified-Since':last_modified})
             class NotModifiedHandler(urllib2.BaseHandler):
@@ -115,50 +124,78 @@ def update_remote():
                 c.execute('Drop Table If Exists "%s"' % table)
                 create_table(c, table)
 
-                #Insert Or Replace for each app in repo.
+                #Insert Or Replace for each package in repo.
                 #TODO: Break into subfunctions?
-                for app in repo["applications"]:
+                for pkg in repo["packages"]:
 
                     #Get info in preferred language (fail if none available).
                     title=None; description=None
                     for lang in options.get_locale():
                         try:
-                            title = app['localizations'][lang]['title']
-                            description = app['localizations'][lang]['description']
+                            title = pkg['localizations'][lang]['title']
+                            description = pkg['localizations'][lang]['description']
                             break
                         except KeyError: pass
                     if title is None or description is None:
                         raise RepoError('An application does not have any usable language')
 
                     # These fields will not be present for every app.
-                    # Note that 'md5' is mandatory in repo version 1.1, and
-                    # 'author' in 1.3.  However, I get full compatibility with
-                    # all versions by just leaving them optional.  Just don't
-                    # rely on this code to fully validate your repository!
-                    opt_field = {'author':None, 'vendor':None, 'md5':None, 'icon':None}
+                    opt_field = {'vendor':None, 'icon':None, 'rating':None}
                     for i in opt_field.iterkeys():
-                        try: opt_field[i] = app[i]
+                        try: opt_field[i] = pkg[i]
                         except KeyError: pass
 
-                    #As of repo version 1.2, version numbers are strings, not
-                    #just ints.  But the columns' text affinity autoconverts
-                    #them as necessary.
+                    author = {'name':None, 'website':None, 'email':None}
+                    for i in author.iterkeys():
+                        try: author[i] = pkg['author'][i]
+                        except KeyError: pass
+
+                    # These fields should only be used if not present in the
+                    # applications array.  Set them here, then override with
+                    # contents of applications array if present.
+                    opt_list = {'previewpics':None, 'licenses':None,
+                        'source':None, 'categories':None}
+                    for i in opt_list.iterkeys():
+                        try: opt_list[i] = SEPCHAR.join(pkg[i])
+                        except KeyError: pass
+
+                    applications = None
+                    try:
+                        applist = pkg['applications']
+                        applications = SEPCHAR.join(
+                            [app['id'] for app in applist] )
+
+                        # Join all lists of all apps into one megalist.
+                        for i in opt_list.iterkeys():
+                            opt_list[i] = SEPCHAR.join([ SEPCHAR.join(app[i])
+                                for app in applist ] )
+
+                    except KeyError: pass
+
                     c.execute("""Insert Or Replace Into "%s" Values
-                        (?,?,?,?,?,?,?,?,?,?,?)""" % table,
-                        ( app['id'],
+                        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
+                        ( pkg['id'],
                         '.'.join( (
-                            app['version']['major'],
-                            app['version']['minor'],
-                            app['version']['release'],
-                            app['version']['build'], ) ),
-                        app['uri'],
+                            pkg['version']['major'],
+                            pkg['version']['minor'],
+                            pkg['version']['release'],
+                            pkg['version']['build'], ) ),
+                        author['name'],
+                        author['website'],
+                        author['email'],
                         title,
                         description,
-                        ':'.join(app['categories']),
-                        opt_field['author'],
+                        opt_field['icon'],
+                        pkg['uri'],
+                        pkg['md5'],
                         opt_field['vendor'],
-                        opt_field['md5'],
-                        opt_field['icon'], None) )
+                        opt_field['rating'],
+                        applications,
+                        opt_list['previewpics'],
+                        opt_list['licenses'],
+                        opt_list['source'],
+                        opt_list['categories'],
+                        None) )
                     #TODO: make sure no required fields are missing. covered by try and Not Null?
                     #TODO: Don't erase icon_cache if icon hasn't changed.
 
@@ -190,13 +227,50 @@ def update_local_file(path):
     with open(path, 'rb') as p: m = md5.new(p.read())
 
     # Extract all the useful information from the PND and add it to the table.
-    # NOTE: For now, only considers the first app in the PND, since that's what
-    # milkshake's repo does.  Will likely need to expand it in the future.
-    app = pxml[0]
+    # NOTE, TODO: libpnd doesn't yet have functions to look at the package
+    # element of a PND.  For now, check the first application element, and
+    # assume that it's representative of the package as a whole.
+    pkg = pxml[0]
+    libpnd.pxml_get_unique_id(pkg)
 
-    categories = ( libpnd.pxml_get_main_category(app), libpnd.pxml_get_subcategory1(app),
-        libpnd.pxml_get_subcategory2(app), libpnd.pxml_get_altcategory(app),
-        libpnd.pxml_get_altsubcategory1(app), libpnd.pxml_get_altsubcategory2(app) )
+    # Find out how many apps are in the PXML, so we can iterate over them.
+    n_apps = 0
+    for i in pxml:
+        if i == 0: break
+        n_apps += 1
+
+    applications = SEPCHAR.join([ libpnd.pxml_get_unique_id( pxml[i] )
+        for i in xrange(n_apps) ])
+
+    previewpics = []
+    for i in xrange(n_apps):
+        p = libpnd.pxml_get_previewpic1( pxml[i] )
+        if p is not None: previewpics.append(p)
+        p = libpnd.pxml_get_previewpic2( pxml[i] )
+        if p is not None: previewpics.append(p)
+    if previewpics:
+        previewpics = SEPCHAR.join(previewpics)
+    else: previewpics = None
+
+    # TODO: Get licenses and source urls once libpnd has that functionality.
+
+    categories = []
+    for i in xrange(n_apps):
+        c = libpnd.pxml_get_main_category( pxml[i] )
+        if c is not None: categories.append(c)
+        c = libpnd.pxml_get_subcategory1( pxml[i] )
+        if c is not None: categories.append(c)
+        c = libpnd.pxml_get_subcategory2( pxml[i] )
+        if c is not None: categories.append(c)
+        c = libpnd.pxml_get_altcategory( pxml[i] )
+        if c is not None: categories.append(c)
+        c = libpnd.pxml_get_altsubcategory1( pxml[i] )
+        if c is not None: categories.append(c)
+        c = libpnd.pxml_get_altsubcategory2( pxml[i] )
+        if c is not None: categories.append(c)
+    if categories:
+        categories = SEPCHAR.join(categories)
+    else: categories = None
 
     # TODO: Opening a new connection for each file getting added is probably
     # inefficient.  Might be better if a connection or cursor object could be
@@ -204,24 +278,31 @@ def update_local_file(path):
     with sqlite3.connect(options.get_database()) as db:
         c = db.cursor()
         c.execute("""Insert Or Replace Into "%s" Values
-            (?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
-            ( libpnd.pxml_get_unique_id(app),
+            (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
+            ( libpnd.pxml_get_unique_id(pkg),
             '.'.join( (
-                libpnd.pxml_get_version_major(app),
-                libpnd.pxml_get_version_minor(app),
-                libpnd.pxml_get_version_release(app),
-                libpnd.pxml_get_version_build(app), ) ),
-            path,
+                libpnd.pxml_get_version_major(pkg),
+                libpnd.pxml_get_version_minor(pkg),
+                libpnd.pxml_get_version_release(pkg),
+                libpnd.pxml_get_version_build(pkg), ) ),
+            libpnd.pxml_get_author_name(pkg),
+            libpnd.pxml_get_author_website(pkg),
+            None, # NOTE: libpnd has no pxml_get_author_email?
             # TODO: I'm not sure how libpnd handles locales exactly...
-            libpnd.pxml_get_app_name(app, options.get_locale()[0]),
-            libpnd.pxml_get_description(app, options.get_locale()[0]),
-            ':'.join([i for i in categories if i is not None]),
-            libpnd.pxml_get_author_name(app),
-            None, # I see no use for "vendor" on installed apps.
+            libpnd.pxml_get_app_name(pkg, options.get_locale()[0]),
+            libpnd.pxml_get_description(pkg, options.get_locale()[0]),
+            libpnd.pxml_get_icon(pkg),
+            path,
             m.hexdigest(),
-            libpnd.pxml_get_icon(app),
+            None, # I see no use for "vendor" on installed apps.
+            None, # Nor "rating".
+            applications,
+            previewpics,
+            None, # TODO: Licenses once libpnd can pull them.
+            None, # TODO: Sources once libpnd can pull them.
+            categories,
             None) ) # TODO: Get icon buffer with pnd_desktop's pnd_emit_icon_to_buffer
-    libpnd.pxml_delete(app)
+    libpnd.pxml_delete(pkg)
 
 
 def update_local():

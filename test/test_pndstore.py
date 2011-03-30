@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from pndstore import options, database_update, database_query, libpnd
 
 # Latest repo version; only latest gets tested (for now).
-repo_version = 1.3
+repo_version = 2.0
 
 # Find/store files needed for testing here.
 testfiles = os.path.join(os.path.dirname(__file__), 'testdata')
@@ -110,12 +110,13 @@ class TestOptions(unittest.TestCase):
 class TestDatabaseUpdate(unittest.TestCase):
     repotxt = (
 
+# TODO: IMPORTANT.  Get application testing in here.
 """{
   "repository": {
     "name":        "%s",
     "version":     %f
   },
-  "applications": [
+  "packages": [
     {
       "id":        "viceVIC.pickle",
       "version": {
@@ -124,7 +125,11 @@ class TestDatabaseUpdate(unittest.TestCase):
         "release": "1",
         "build":   "3"
       },
-      "author":   "Ported by Pickle",
+      "author": {
+        "name": "Ported by Pickle",
+        "website": "http://places.there",
+        "email": "one@two.three"
+      },
       "vendor":    "dflemstr",
       "uri":       "http://example.org/test.pnd",
       "localizations": {
@@ -133,6 +138,7 @@ class TestDatabaseUpdate(unittest.TestCase):
           "description": "A VIC Emulator."
         }
       },
+      "rating": 12,
       "categories": [
         "Game"
       ],
@@ -209,26 +215,40 @@ class TestDatabaseUpdate(unittest.TestCase):
         i = c.fetchone()
         self.assertEqual(i['id'], 'viceVIC.pickle')
         self.assertEqual(i['version'], '4.2.1.3')
-        self.assertEqual(i['uri'], "http://example.org/test.pnd")
+        self.assertEqual(i['author_name'], "Ported by Pickle")
+        self.assertEqual(i['author_website'], "http://places.there")
+        self.assertEqual(i['author_email'], "one@two.three")
         self.assertEqual(i['title'], "Vice xVIC")
         self.assertEqual(i['description'], "A VIC Emulator.")
-        self.assertEqual(i['author'], "Ported by Pickle")
-        self.assertEqual(i['vendor'], "dflemstr")
-        self.assertEqual(i['categories'], "Game")
-        self.assertEqual(i['md5'], '55538bb9c9ff46699c154d3de733c68b')
         self.assertEqual(i['icon'], "http://example.org/test.png")
+        self.assertEqual(i['uri'], "http://example.org/test.pnd")
+        self.assertEqual(i['md5'], '55538bb9c9ff46699c154d3de733c68b')
+        self.assertEqual(i['vendor'], "dflemstr")
+        self.assertEqual(i['rating'], 12)
+        self.assertEqual(i['applications'], None)
+        self.assertEqual(i['previewpics'], None)
+        self.assertEqual(i['licenses'], None)
+        self.assertEqual(i['source'], None)
+        self.assertEqual(i['categories'], "Game")
         self.assertEqual(i['icon_cache'], None)
         i = c.fetchone()
         self.assertEqual(i['id'], 'Different VICE')
         self.assertEqual(i['version'], '9.3b.3.6')
-        self.assertEqual(i['uri'], "http://example.org/test2.pnd")
+        self.assertEqual(i['author_name'], None)
+        self.assertEqual(i['author_website'], None)
+        self.assertEqual(i['author_email'], None)
         self.assertEqual(i['title'], "Vice xVIC, eh?")
         self.assertEqual(i['description'], "It's not prejudice if I'm Canadian, right?!")
-        self.assertEqual(i['author'], None)
-        self.assertEqual(i['vendor'], "Tempel")
-        self.assertEqual(i['categories'], "Game:Emulator")
-        self.assertEqual(i['md5'], 'd3de733c68b55538bb9c9ff46699c154')
         self.assertEqual(i['icon'], "http://example.org/test2.png")
+        self.assertEqual(i['uri'], "http://example.org/test2.pnd")
+        self.assertEqual(i['md5'], 'd3de733c68b55538bb9c9ff46699c154')
+        self.assertEqual(i['vendor'], "Tempel")
+        self.assertEqual(i['rating'], None)
+        self.assertEqual(i['applications'], None)
+        self.assertEqual(i['previewpics'], None)
+        self.assertEqual(i['licenses'], None)
+        self.assertEqual(i['source'], None)
+        self.assertEqual(i['categories'], "Game:Emulator")
         self.assertEqual(i['icon_cache'], None)
         #TODO: Test multiple (different!) databases.
         #TODO: Test database updating (namely, removal of apps).
@@ -254,42 +274,62 @@ class TestDatabaseUpdate(unittest.TestCase):
         db = sqlite3.connect(options.get_database())
         db.row_factory = sqlite3.Row
         #Check that database has correct entries.
+        # TODO: Get some PNDs that have previewpics for testing.
+        # TODO: And some with multiple applications.
         c = db.execute('Select * From "%s" Where id="bubbman2"'
             %database_update.LOCAL_TABLE)
         i = c.fetchone()
         self.assertEqual(i['id'], 'bubbman2')
         self.assertEqual(i['version'], '1.0.3.1')
-        self.assertEqual(i['uri'], os.path.join(testfiles, 'BubbMan2.pnd'))
+        self.assertEqual(i['author_name'], "pymike")
+        self.assertEqual(i['author_website'],
+            "http://www.pygame.org/project-BubbMan+2-1114-.html")
+        self.assertEqual(i['author_email'], None)
         self.assertEqual(i['title'], "BubbMan2")
         self.assertEqual(i['description'], "A solo entry by pymike for PyWeek #8")
-        self.assertEqual(i['categories'], "Game:ActionGame")
-        self.assertEqual(i['author'], "pymike")
-        self.assertEqual(i['vendor'], None)
-        self.assertEqual(i['md5'], '84c81afa183561f0bb7b2db692646833')
         self.assertEqual(i['icon'], 'data/logo.png')
+        self.assertEqual(i['uri'], os.path.join(testfiles, 'BubbMan2.pnd'))
+        self.assertEqual(i['md5'], '84c81afa183561f0bb7b2db692646833')
+        self.assertEqual(i['vendor'], None)
+        self.assertEqual(i['rating'], None)
+        self.assertEqual(i['applications'], 'bubbman2')
+        self.assertEqual(i['previewpics'], None)
+        self.assertEqual(i['licenses'], None)
+        self.assertEqual(i['source'], None)
+        self.assertEqual(i['categories'], "Game:ActionGame")
         c = db.execute('Select * From "%s" Where id="sparks"'
             %database_update.LOCAL_TABLE)
         i = c.fetchone()
         self.assertEqual(i['id'], 'sparks')
         self.assertEqual(i['version'], '0.4.2.0')
-        self.assertEqual(i['uri'], os.path.join(testfiles, 'Sparks-0.4.2.pnd'))
+        self.assertEqual(i['author_name'], "Haltux")
+        self.assertEqual(i['author_website'], "https://github.com/haltux")
+        self.assertEqual(i['author_email'], None)
         self.assertEqual(i['title'], "Sparks")
         self.assertEqual(i['description'], "A vectorial shooter")
-        self.assertEqual(i['categories'], "Game:ArcadeGame")
-        self.assertEqual(i['author'], "Haltux")
-        self.assertEqual(i['vendor'], None)
-        self.assertEqual(i['md5'], 'fb10014578bb3f0c0ae8e88a0fd81121')
         self.assertEqual(i['icon'], 'icon.png')
+        self.assertEqual(i['uri'], os.path.join(testfiles, 'Sparks-0.4.2.pnd'))
+        self.assertEqual(i['md5'], 'fb10014578bb3f0c0ae8e88a0fd81121')
+        self.assertEqual(i['vendor'], None)
+        self.assertEqual(i['rating'], None)
+        self.assertEqual(i['applications'], 'sparks')
+        self.assertEqual(i['previewpics'], None)
+        self.assertEqual(i['licenses'], None)
+        self.assertEqual(i['source'], None)
+        self.assertEqual(i['categories'], "Game:ArcadeGame")
         c = db.execute('Select * From "%s" Where id="the-lonely-tower"'
             %database_update.LOCAL_TABLE)
         i = c.fetchone()
         self.assertEqual(i['id'], 'the-lonely-tower')
         self.assertEqual(i['version'], '2.2.0.0')
+        self.assertEqual(i['author_name'], "Randy Heydon")
+        self.assertEqual(i['author_website'],
+            "http://randy.heydon.selfip.net/Programs/The Lonely Tower/")
+        self.assertEqual(i['author_email'], None)
         self.assertEqual(i['uri'], os.path.join(testfiles, 'The Lonely Tower-2.2.pnd'))
         self.assertEqual(i['title'], "The Lonely Tower")
         self.assertEqual(i['description'], "A dumb arty game made for a competition.")
         self.assertEqual(i['categories'], "Game:RolePlaying")
-        self.assertEqual(i['author'], "Randy Heydon")
         self.assertEqual(i['vendor'], None)
         self.assertEqual(i['md5'], '0314d0f7055052cd91ec608d63acad2a')
         self.assertEqual(i['icon'],
