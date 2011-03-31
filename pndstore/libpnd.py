@@ -17,97 +17,16 @@ conf_handle = c.c_int
 box_handle = c.c_int
 box_node_t = c.c_int
 
-##pnd_discovery
-#class disco_t(c.Structure): #I don't know if this is useful anywhere.
-#    _fields_ = [
-#        ('object_type', c.c_ubyte),
-#        ('object_path', c.c_char_p),
-#        ('object_filename', c.c_char_p),
-#        ('pnd_icon_pos', c.c_uint),
-#        ('subapp_number', c.c_ubyte),
-#        ('object_flags', c.c_uint),
-#        ('title_en', c.c_char_p),
-#        ('desc_en', c.c_char_p),
-#        ('unique_id', c.c_char_p),
-#        ('appdata_dirname', c.c_char_p),
-#        ('icon', c.c_char_p),
-#        ('exec', c.c_char_p),
-#        ('execargs', c.c_char_p),
-#        ('clockspeed', c.c_char_p),
-#        ('startdir', c.c_char_p),
-#        ('option_no_x11', c.c_char_p),
-#        ('main_category', c.c_char_p),
-#        ('main_category1', c.c_char_p),
-#        ('main_category2', c.c_char_p),
-#        ('alt_category', c.c_char_p),
-#        ('alt_category1', c.c_char_p),
-#        ('alt_category2', c.c_char_p),
-#        ('preview_pic1', c.c_char_p),
-#        ('preview_pic2', c.c_char_p),
-#        ('mkdir_sp', c.c_char_p),
-#        ('info_name', c.c_char_p),
-#        ('info_filename', c.c_char_p),
-#        ('info_type', c.c_char_p),
-#    ]
-
 ##pnd_pxml
 pxml_handle = c.c_int
 
-#class localized_string_t(c.Structure):
-#    _fields_ = [
-#        ('language', c.c_char_p),
-#        ('string', c.c_char_p),
-#    ]
-#
-#class pxml_t(c.Structure): #Also not useful anywhere
-#    _fields_ = [
-#        ('subapp_number', c.c_ubyte),
-#        ('titles', localized_string_t),#FIXME:Does this need to be a pointer?
-#        ('descriptions_c', c.c_int),
-#        ('descriptions_alloc_c', c.c_int),
-#        ('previewpic1', c.c_char_p),
-#        ('previewpic2', c.c_char_p),
-#        ('author_name', c.c_char_p),
-#        ('author_website', c.c_char_p),
-#        ('version_major', c.c_char_p),
-#        ('version_minor', c.c_char_p),
-#        ('version_release', c.c_char_p),
-#        ('version_build', c.c_char_p),
-#        ('exec', c.c_char_p),
-#        ('execargs', c.c_char_p),
-#        ('main_category', c.c_char_p),
-#        ('subcategory1', c.c_char_p),
-#        ('subcategory2', c.c_char_p),
-#        ('altcategory', c.c_char_p),
-#        ('altsubcategory1', c.c_char_p),
-#        ('altsubcategory2', c.c_char_p),
-#        ('osversion_major', c.c_char_p),
-#        ('osversion_minor', c.c_char_p),
-#        ('osversion_release', c.c_char_p),
-#        ('osversion_build', c.c_char_p),
-#        ('associationitem1_name', c.c_char_p),
-#        ('associationitem1_filetype', c.c_char_p),
-#        ('associationitem1_parameter', c.c_char_p),
-#        ('associationitem2_name', c.c_char_p),
-#        ('associationitem2_filetype', c.c_char_p),
-#        ('associationitem2_parameter', c.c_char_p),
-#        ('associationitem3_name', c.c_char_p),
-#        ('associationitem3_filetype', c.c_char_p),
-#        ('associationitem3_parameter', c.c_char_p),
-#        ('clockspeed', c.c_char_p),
-#        ('background', c.c_char_p),
-#        ('startdir', c.c_char_p),
-#        ('exec_no_x11', c.c_char_p),
-#        ('package_name', c.c_char_p),
-#        ('package_release_date', c.c_char_p),
-#        ('makedir_sp', c.c_char_p),
-#        ('info_name', c.c_char_p),
-#        ('info_filename', c.c_char_p),
-#        ('info_type', c.c_char_p),
-#    ]
-
 
 #Function prototypes.
+
+##pnd_apps
+get_appdata_path = p.pnd_get_appdata_path
+get_appdata_path.argtypes = [c.c_char_p, c.c_char_p, c.c_char_p, c.c_uint]
+get_appdata_path.restype = c.c_ubyte
 
 ##pnd_conf
 conf_query_searchpath = p.pnd_conf_query_searchpath

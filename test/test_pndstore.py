@@ -2,7 +2,7 @@
 """Tests the various core (non-gui-related) elements of pndstore.
 For many of these tests to work, libpnd.so.1 must be loadable.  Make sure it's
 installed (ie: on a Pandora), or accessible by LD_LIBRARY_PATH."""
-import unittest, shutil, os.path, locale, sqlite3
+import unittest, shutil, os.path, locale, sqlite3, ctypes
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -355,15 +355,15 @@ class TestLibpnd(unittest.TestCase):
     def testDiscovery(self):
         search = libpnd.disco_search(testfiles, None)
         n = libpnd.box_get_size(search)
-        self.assertEqual(n, 3)
+        self.assertEqual(n, 4)
 
         node = libpnd.box_get_head(search)
         pnds = [libpnd.box_get_key(node)]
         for i in xrange(n-1):
             node = libpnd.box_get_next(node)
             pnds.append(libpnd.box_get_key(node))
-        self.assertItemsEqual(map(os.path.basename, pnds),
-            ('BubbMan2.pnd', 'Sparks-0.4.2.pnd', 'The Lonely Tower-2.2.pnd'))
+        self.assertItemsEqual(map(os.path.basename, pnds), ('BubbMan2.pnd',
+            'Sparks-0.4.2.pnd', 'The Lonely Tower-2.2.pnd', 'supertest.pnd'))
 
 
     def testParsing(self):
@@ -375,6 +375,27 @@ class TestLibpnd(unittest.TestCase):
             self.assertEqual(libpnd.pxml_get_unique_id(app), 'the-lonely-tower')
             self.assertEqual(libpnd.pxml_get_app_name(app, 'en_US'), 'The Lonely Tower')
             libpnd.pxml_delete(app)
+
+
+    def testAppdataPath(self):
+        # Note: this function
+        r_path = ctypes.create_string_buffer(256)
+
+        ret = libpnd.get_appdata_path(
+            '"%s"'%os.path.join(testfiles, 'The Lonely Tower-2.2.pnd'),
+            'the-lonely-tower', r_path, 256)
+        self.assertGreater(ret, 0)
+        self.assertRegexpMatches(r_path.value, r'/pandora/appdata/the-lonely-tower/$')
+
+        ret = libpnd.get_appdata_path(
+            '"%s"'%os.path.join(testfiles, 'supertest.pnd'),
+            'supertest-appdata', r_path, 256)
+        self.assertGreater(ret, 0)
+        self.assertRegexpMatches(r_path.value, r'/pandora/appdata/supertest-appdata/$')
+
+        # This test is noisy and prints stuff to stderr.  Just ignore it.
+        ret = libpnd.get_appdata_path('"IGNORE ME"', 'somewhere', r_path, 256)
+        self.assertEqual(ret, 0)
 
 
 
@@ -438,7 +459,7 @@ class TestPackages(unittest.TestCase):
         ps = packages.get_all()
         for p in ps:
             self.assertIsInstance(p, packages.Package)
-        self.assertEqual(len(ps), 3)
+        self.assertEqual(len(ps), 4)
 
 
     def testGetUpdates(self):
