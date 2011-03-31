@@ -26,7 +26,7 @@ parser.add_option('--upgrade', '-u',
 
 opts, args = parser.parse_args()
 
-from pndstore import options, database_update, database_query
+from pndstore import options, database_update, packages
 
 if opts.working_dir is not None:
     options.working_dir = opts.working_dir
