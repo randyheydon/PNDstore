@@ -7,18 +7,17 @@ import ctypes as c
 p = c.CDLL('libpnd.so.1')
 
 #Data structures defined in libpnd.
-#Many of these are defined as black-box types (void pointers).  Rather than
-#trying to know what's in them, just store the reference integer.
+#Many of these are defined as black-box types (void pointers).
 
 ##pnd_conf
-conf_handle = c.c_int
+conf_handle = c.c_void_p
 
 ##pnd_container
-box_handle = c.c_int
-box_node_t = c.c_int
+box_handle = c.c_void_p
+box_node_t = c.c_void_p
 
 ##pnd_pxml
-pxml_handle = c.c_int
+pxml_handle = c.c_void_p
 
 
 #Function prototypes.

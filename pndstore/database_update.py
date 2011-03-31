@@ -236,7 +236,7 @@ def update_local_file(path):
     # Find out how many apps are in the PXML, so we can iterate over them.
     n_apps = 0
     for i in pxml:
-        if i == 0: break
+        if i is None: break
         n_apps += 1
 
     applications = SEPCHAR.join([ libpnd.pxml_get_unique_id( pxml[i] )

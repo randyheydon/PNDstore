@@ -369,9 +369,9 @@ class TestLibpnd(unittest.TestCase):
     def testParsing(self):
         pxml = libpnd.pxml_get_by_path(
             os.path.join(testfiles, 'The Lonely Tower-2.2.pnd'))
-        self.assertNotEqual(pxml, 0) # Check for failed parsing so we don't segfault.
+        self.assertIsNotNone(pxml) # Check for failed parsing so we don't segfault.
         for app in pxml:
-            if app == 0: break
+            if app is None: break
             self.assertEqual(libpnd.pxml_get_unique_id(app), 'the-lonely-tower')
             self.assertEqual(libpnd.pxml_get_app_name(app, 'en_US'), 'The Lonely Tower')
             libpnd.pxml_delete(app)
