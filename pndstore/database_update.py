@@ -10,7 +10,7 @@ REPO_VERSION = (2.0,)
 
 LOCAL_TABLE = 'local'
 REPO_INDEX_TABLE = 'repo_index'
-SEPCHAR = ':' # Character that defines list separations in the database.
+SEPCHAR = ';' # Character that defines list separations in the database.
 
 class RepoError(Exception): pass
 

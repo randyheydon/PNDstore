@@ -247,7 +247,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['previewpics'], None)
         self.assertEqual(i['licenses'], None)
         self.assertEqual(i['source'], None)
-        self.assertEqual(i['categories'], "Game:Emulator")
+        self.assertEqual(i['categories'], "Game;Emulator")
         self.assertEqual(i['icon_cache'], None)
         #TODO: Test multiple (different!) databases.
         #TODO: Test database updating (namely, removal of apps).
@@ -293,7 +293,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['previewpics'], None)
         self.assertEqual(i['licenses'], None)
         self.assertEqual(i['source'], None)
-        self.assertEqual(i['categories'], "Game:ActionGame")
+        self.assertEqual(i['categories'], "Game;ActionGame")
         c = db.execute('Select * From "%s" Where id="sparks"'
             %database_update.LOCAL_TABLE)
         i = c.fetchone()
@@ -313,7 +313,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['previewpics'], None)
         self.assertEqual(i['licenses'], None)
         self.assertEqual(i['source'], None)
-        self.assertEqual(i['categories'], "Game:ArcadeGame")
+        self.assertEqual(i['categories'], "Game;ArcadeGame")
         c = db.execute('Select * From "%s" Where id="the-lonely-tower"'
             %database_update.LOCAL_TABLE)
         i = c.fetchone()
@@ -335,7 +335,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['previewpics'], None)
         self.assertEqual(i['licenses'], None)
         self.assertEqual(i['source'], None)
-        self.assertEqual(i['categories'], "Game:RolePlaying")
+        self.assertEqual(i['categories'], "Game;RolePlaying")
         c = db.execute('Select * From "%s" Where id="sample-package"'
             %database_update.LOCAL_TABLE)
         i = c.fetchone()
@@ -353,15 +353,15 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['vendor'], None)
         self.assertEqual(i['rating'], None)
         self.assertEqual(i['applications'],
-            'sample-app1:sample-app2:sample-app3')
+            'sample-app1;sample-app2;sample-app3')
         self.assertEqual(i['previewpics'],
-            'preview-image.png:application_1.png:different-preview-image.png')
+            'preview-image.png;application_1.png;different-preview-image.png')
         self.assertEqual(i['licenses'],
-            'I do as I please:other:Qt-commercial:public domain:GPLv2+:GPLv2+')
+            'I do as I please;other;Qt-commercial;public domain;GPLv2+;GPLv2+')
         self.assertEqual(i['source'],
-            'git://git.openpandora.org:http://pandora.org/sources/package.tar.bz2')
+            'git://git.openpandora.org;http://pandora.org/sources/package.tar.bz2')
         self.assertEqual(i['categories'],
-            "Game:Emulator:System:Emulator:Game:StrategyGame:System")
+            "Game;Emulator;System;Emulator;Game;StrategyGame;System")
         # TODO: An individual test for update_local_path.
         # TODO: Test for bad conditions that could cause segfaults.
 
