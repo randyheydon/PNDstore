@@ -1,8 +1,16 @@
-"""This module populates the app database with installed and available applications.  Consumers of this module will likely only need the functions update_remote and update_local (and maybe update_local_file, if you're feeling fancy).
+"""
+This module populates the app database with installed and available
+applications.  Consumers of this module will likely only need the functions
+update_remote and update_local (and maybe update_local_file, if you're feeling
+fancy).
 
-Concurrency note: Most functions here make changes to the database.  However, they all create their own connections and cursors; since sqlite can handle concurrent database writes automatically, these functions should be thread safe."""
+Concurrency note: Most functions here make changes to the database.  However,
+they all create their own connections and cursors; since sqlite can handle
+concurrent database writes automatically, these functions should be thread safe.
+"""
 
-import options, libpnd, urllib2, sqlite3, json, md5
+import options, libpnd, urllib2, sqlite3, json, md5, ctypes
+import xml.etree.cElementTree as etree
 
 #This module currently supports these versions of the PND repository
 #specification as seen at http://pandorawiki.org/PND_repository_specification
@@ -12,11 +20,21 @@ LOCAL_TABLE = 'local'
 REPO_INDEX_TABLE = 'repo_index'
 SEPCHAR = ';' # Character that defines list separations in the database.
 
+PXML_NAMESPACE = 'http://openpandora.org/namespaces/PXML'
+xml_child = lambda s: '{%s}%s' % (PXML_NAMESPACE, s)
+
 class RepoError(Exception): pass
+class PNDError(Exception): pass
 
 
 def sanitize_sql(name):
-    """The execute method's parametrization does not work for table names.  Therefore string formatting must be used, which bypasses the sqlite3 package's sanitization.  This function takes a stab at sanitizing.  Since table names are put in double quotes (thereby representing an SQL identifier), any characters should be fine except double quotes.  But since all table names are URLs read from a JSON file, they likely won't include quotes, so this function is mostly useless."""
+    """The execute method's parametrization does not work for table names.
+    Therefore string formatting must be used, which bypasses the sqlite3
+    package's sanitization.  This function takes a stab at sanitizing.  Since
+    table names are put in double quotes (thereby representing an SQL
+    identifier), any characters should be fine except double quotes.  But since
+    all table names are URLs read from a JSON file, they likely won't include
+    quotes, so this function is mostly useless."""
     return str(name).translate(None, '"')
     #TODO: Remove str call once/if it's not needed.
 
@@ -91,7 +109,8 @@ def open_repos():
 
 
 def update_remote():
-    """Adds a table for each repository to the database, adding an entry for each application listed in the repository."""
+    """Adds a table for each repository to the database, adding an entry for each
+    application listed in the repository."""
     #Open database connection.
     db = sqlite3.connect(options.get_database())
     db.row_factory = sqlite3.Row
@@ -221,32 +240,93 @@ def update_remote():
 
 def update_local_file(path):
     """Adds an entry to the local database based on the PND found at "path"."""
-    pxml = libpnd.pxml_get_by_path(path)
-    if not pxml:
+    apps = libpnd.pxml_get_by_path(path)
+    if not apps:
         raise ValueError("%s doesn't seem to be a real PND file." % path)
     with open(path, 'rb') as p: m = md5.new(p.read())
 
     # Extract all the useful information from the PND and add it to the table.
-    # NOTE, TODO: libpnd doesn't yet have functions to look at the package
-    # element of a PND.  For now, check the first application element, and
-    # assume that it's representative of the package as a whole.
-    pkg = pxml[0]
-    libpnd.pxml_get_unique_id(pkg)
+    # NOTE: libpnd doesn't yet have functions to look at the package element of
+    # a PND.  For now, check the first application element, and assume that
+    # it's representative of the package as a whole.
+    pxml_buffer = ctypes.create_string_buffer(libpnd.PXML_MAXLEN)
+    f = libpnd.libc.fopen(path, 'r')
+    if not libpnd.pnd_seek_pxml(f):
+        raise PNDError('PND file has no starting PXML tag.')
+    if not libpnd.pnd_accrue_pxml(f, pxml_buffer, libpnd.PXML_MAXLEN):
+        raise PNDError('PND file has no ending PXML tag.')
+    try:
+        pxml = etree.XML(pxml_buffer.value)
+    except etree.ParseError:
+        # Then it's got those trailing characters from the icon.  Remove them!
+        pxml = etree.XML(pxml_buffer.value[:-6])
+
+    pkg = pxml.find(xml_child('package'))
+    if pkg is not None:
+        # Parse package element.
+        pkgid = pkg.attrib['id']
+
+        v = pkg.find(xml_child('version'))
+        # TODO: Add support for 'type' attribute.
+        version = '.'.join( (
+            v.attrib['major'],
+            v.attrib['minor'],
+            v.attrib['release'],
+            v.attrib['build'], ) )
+
+        author = pkg.find(xml_child('author'))
+        author_name = author.get('name')
+        author_website = author.get('website')
+        author_email = author.get('email')
+
+        titles = {}; descs = {}
+        for t in pkg.find(xml_child('titles')):
+            titles[t.attrib['lang']] = t.text
+        for d in pkg.find(xml_child('descriptions')):
+            descs[d.attrib['lang']] = d.text
+        for l in options.get_locale():
+            try:
+                title = titles[l]
+                description = descs[l]
+                break
+            except KeyError: pass
+
+        i = pkg.find(xml_child('icon'))
+        if i is not None:
+            icon = i.get('src')
+        else: icon = None
+
+    else:
+        # Assume first app element is representative of the package as a whole.
+        pkg = apps[0]
+        pkgid = libpnd.pxml_get_unique_id(pkg)
+        version = '.'.join( (
+            libpnd.pxml_get_version_major(pkg),
+            libpnd.pxml_get_version_minor(pkg),
+            libpnd.pxml_get_version_release(pkg),
+            libpnd.pxml_get_version_build(pkg), ) )
+        author_name = libpnd.pxml_get_author_name(pkg)
+        author_website = libpnd.pxml_get_author_website(pkg)
+        author_email = None # NOTE: libpnd has no pxml_get_author_email?
+        # TODO: I'm not sure how libpnd handles locales exactly...
+        title = libpnd.pxml_get_app_name(pkg, options.get_locale()[0])
+        description = libpnd.pxml_get_description(pkg, options.get_locale()[0])
+        icon = libpnd.pxml_get_icon(pkg)
 
     # Find out how many apps are in the PXML, so we can iterate over them.
     n_apps = 0
-    for i in pxml:
+    for i in apps:
         if i is None: break
         n_apps += 1
 
-    applications = SEPCHAR.join([ libpnd.pxml_get_unique_id( pxml[i] )
+    applications = SEPCHAR.join([ libpnd.pxml_get_unique_id( apps[i] )
         for i in xrange(n_apps) ])
 
     previewpics = []
     for i in xrange(n_apps):
-        p = libpnd.pxml_get_previewpic1( pxml[i] )
+        p = libpnd.pxml_get_previewpic1( apps[i] )
         if p is not None: previewpics.append(p)
-        p = libpnd.pxml_get_previewpic2( pxml[i] )
+        p = libpnd.pxml_get_previewpic2( apps[i] )
         if p is not None: previewpics.append(p)
     if previewpics:
         previewpics = SEPCHAR.join(previewpics)
@@ -256,17 +336,17 @@ def update_local_file(path):
 
     categories = []
     for i in xrange(n_apps):
-        c = libpnd.pxml_get_main_category( pxml[i] )
+        c = libpnd.pxml_get_main_category( apps[i] )
         if c is not None: categories.append(c)
-        c = libpnd.pxml_get_subcategory1( pxml[i] )
+        c = libpnd.pxml_get_subcategory1( apps[i] )
         if c is not None: categories.append(c)
-        c = libpnd.pxml_get_subcategory2( pxml[i] )
+        c = libpnd.pxml_get_subcategory2( apps[i] )
         if c is not None: categories.append(c)
-        c = libpnd.pxml_get_altcategory( pxml[i] )
+        c = libpnd.pxml_get_altcategory( apps[i] )
         if c is not None: categories.append(c)
-        c = libpnd.pxml_get_altsubcategory1( pxml[i] )
+        c = libpnd.pxml_get_altsubcategory1( apps[i] )
         if c is not None: categories.append(c)
-        c = libpnd.pxml_get_altsubcategory2( pxml[i] )
+        c = libpnd.pxml_get_altsubcategory2( apps[i] )
         if c is not None: categories.append(c)
     if categories:
         categories = SEPCHAR.join(categories)
@@ -279,19 +359,14 @@ def update_local_file(path):
         c = db.cursor()
         c.execute("""Insert Or Replace Into "%s" Values
             (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
-            ( libpnd.pxml_get_unique_id(pkg),
-            '.'.join( (
-                libpnd.pxml_get_version_major(pkg),
-                libpnd.pxml_get_version_minor(pkg),
-                libpnd.pxml_get_version_release(pkg),
-                libpnd.pxml_get_version_build(pkg), ) ),
-            libpnd.pxml_get_author_name(pkg),
-            libpnd.pxml_get_author_website(pkg),
-            None, # NOTE: libpnd has no pxml_get_author_email?
-            # TODO: I'm not sure how libpnd handles locales exactly...
-            libpnd.pxml_get_app_name(pkg, options.get_locale()[0]),
-            libpnd.pxml_get_description(pkg, options.get_locale()[0]),
-            libpnd.pxml_get_icon(pkg),
+            ( pkgid,
+            version,
+            author_name,
+            author_website,
+            author_email,
+            title,
+            description,
+            icon,
             path,
             m.hexdigest(),
             None, # I see no use for "vendor" on installed apps.
@@ -302,11 +377,17 @@ def update_local_file(path):
             None, # TODO: Sources once libpnd can pull them.
             categories,
             None) ) # TODO: Get icon buffer with pnd_desktop's pnd_emit_icon_to_buffer
-    libpnd.pxml_delete(pkg)
+
+    # Clean up the pxml handle.
+    for i in apps:
+        if not i: break
+        libpnd.pxml_delete(i)
+
 
 
 def update_local():
-    """Adds a table to the database, adding an entry for each application found in the searchpath."""
+    """Adds a table to the database, adding an entry for each application found
+    in the searchpath."""
     # Open database connection.
     with sqlite3.connect(options.get_database()) as db:
         db.row_factory = sqlite3.Row
@@ -325,6 +406,8 @@ def update_local():
         raise ValueError("Your install of libpnd isn't behaving right!  pnd_disco_search has returned null.")
 
     # If at least one PND is found, add each to the database.
+    # NOTE, TODO: A package will be listed once for every application it holds.
+    # Make sure to filter that and process each file just once.
     n = libpnd.box_get_size(search)
     if n > 0:
         node = libpnd.box_get_head(search)
