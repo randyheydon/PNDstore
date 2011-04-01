@@ -182,8 +182,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         "file://%%s"
     ],
     "locales": [
-        "en_CA",
-        "de_DE"
+        "en_CA"
     ],
     "searchpath": ["%(testfiles)s"]
 }""" % {'testfiles': testfiles})
@@ -274,8 +273,6 @@ class TestDatabaseUpdate(unittest.TestCase):
         db = sqlite3.connect(options.get_database())
         db.row_factory = sqlite3.Row
         #Check that database has correct entries.
-        # TODO: Get some PNDs that have previewpics for testing.
-        # TODO: And some with multiple applications.
         c = db.execute('Select * From "%s" Where id="bubbman2"'
             %database_update.LOCAL_TABLE)
         i = c.fetchone()
@@ -326,14 +323,45 @@ class TestDatabaseUpdate(unittest.TestCase):
         self.assertEqual(i['author_website'],
             "http://randy.heydon.selfip.net/Programs/The Lonely Tower/")
         self.assertEqual(i['author_email'], None)
-        self.assertEqual(i['uri'], os.path.join(testfiles, 'The Lonely Tower-2.2.pnd'))
         self.assertEqual(i['title'], "The Lonely Tower")
         self.assertEqual(i['description'], "A dumb arty game made for a competition.")
-        self.assertEqual(i['categories'], "Game:RolePlaying")
-        self.assertEqual(i['vendor'], None)
-        self.assertEqual(i['md5'], '0314d0f7055052cd91ec608d63acad2a')
         self.assertEqual(i['icon'],
             'lonelytower/assets/male-brunette-angry-listening-notrans.png')
+        self.assertEqual(i['uri'], os.path.join(testfiles, 'The Lonely Tower-2.2.pnd'))
+        self.assertEqual(i['md5'], '0314d0f7055052cd91ec608d63acad2a')
+        self.assertEqual(i['vendor'], None)
+        self.assertEqual(i['rating'], None)
+        self.assertEqual(i['applications'], 'the-lonely-tower')
+        self.assertEqual(i['previewpics'], None)
+        self.assertEqual(i['licenses'], None)
+        self.assertEqual(i['source'], None)
+        self.assertEqual(i['categories'], "Game:RolePlaying")
+        c = db.execute('Select * From "%s" Where id="sample-package"'
+            %database_update.LOCAL_TABLE)
+        i = c.fetchone()
+        self.assertEqual(i['id'], 'sample-package')
+        self.assertEqual(i['version'], '1.0.0.0')
+        self.assertEqual(i['author_name'], "packagers name")
+        self.assertEqual(i['author_website'], "http://www.website.foo")
+        self.assertEqual(i['author_email'], "user@name.who")
+        self.assertEqual(i['title'], "Sample Collection")
+        self.assertEqual(i['description'],
+            "This is a really verbose package with a whole lot of stuff from 2 different sources, mixing different things, having stuff in ways sometimes making use of stuff, often not.")
+        self.assertEqual(i['icon'], "my-icon.png")
+        self.assertEqual(i['uri'], os.path.join(testfiles, 'fulltest.pnd'))
+        self.assertEqual(i['md5'], '201f7b98cc4933cd728087b548035b71')
+        self.assertEqual(i['vendor'], None)
+        self.assertEqual(i['rating'], None)
+        self.assertEqual(i['applications'],
+            'sample-app1:sample-app2:sample-app3')
+        self.assertEqual(i['previewpics'],
+            'preview-image.png:application_1.png:different-preview-image.png')
+        self.assertEqual(i['licenses'],
+            'I do as I please:other:Qt-commercial:public domain:GPLv2+:GPLv2+')
+        self.assertEqual(i['source'],
+            'git://git.openpandora.org:http://pandora.org/sources/package.tar.bz2')
+        self.assertEqual(i['categories'],
+            "Game:Emulator:System:Emulator:Game:StrategyGame:System")
         # TODO: An individual test for update_local_path.
         # TODO: Test for bad conditions that could cause segfaults.
 
@@ -354,16 +382,18 @@ class TestLibpnd(unittest.TestCase):
 
     def testDiscovery(self):
         search = libpnd.disco_search(testfiles, None)
+        # Note this gives the number of applications, not the number of
+        # packages found.  This test has 4 packages, one of which holds 3 apps.
         n = libpnd.box_get_size(search)
-        self.assertEqual(n, 4)
+        self.assertEqual(n, 6)
 
         node = libpnd.box_get_head(search)
         pnds = [libpnd.box_get_key(node)]
         for i in xrange(n-1):
             node = libpnd.box_get_next(node)
             pnds.append(libpnd.box_get_key(node))
-        self.assertItemsEqual(map(os.path.basename, pnds), ('BubbMan2.pnd',
-            'Sparks-0.4.2.pnd', 'The Lonely Tower-2.2.pnd', 'supertest.pnd'))
+        self.assertSetEqual(set(map(os.path.basename, pnds)), {'BubbMan2.pnd',
+            'Sparks-0.4.2.pnd', 'The Lonely Tower-2.2.pnd', 'fulltest.pnd'})
 
 
     def testParsing(self):
@@ -388,10 +418,10 @@ class TestLibpnd(unittest.TestCase):
         self.assertRegexpMatches(r_path.value, r'/pandora/appdata/the-lonely-tower/$')
 
         ret = libpnd.get_appdata_path(
-            '"%s"'%os.path.join(testfiles, 'supertest.pnd'),
-            'supertest-appdata', r_path, 256)
+            '"%s"'%os.path.join(testfiles, 'fulltest.pnd'),
+            'sample-app3-appdata', r_path, 256)
         self.assertGreater(ret, 0)
-        self.assertRegexpMatches(r_path.value, r'/pandora/appdata/supertest-appdata/$')
+        self.assertRegexpMatches(r_path.value, r'/pandora/appdata/sample-app3-appdata/$')
 
         # This test is noisy and prints stuff to stderr.  Just ignore it.
         ret = libpnd.get_appdata_path('"IGNORE ME"', 'somewhere', r_path, 256)
