@@ -408,7 +408,6 @@ class TestLibpnd(unittest.TestCase):
 
 
     def testAppdataPath(self):
-        # Note: this function
         r_path = ctypes.create_string_buffer(256)
 
         ret = libpnd.get_appdata_path(
@@ -426,6 +425,44 @@ class TestLibpnd(unittest.TestCase):
         # This test is noisy and prints stuff to stderr.  Just ignore it.
         ret = libpnd.get_appdata_path('"IGNORE ME"', 'somewhere', r_path, 256)
         self.assertEqual(ret, 0)
+
+
+    def testAccruePXML(self):
+        target = ctypes.create_string_buffer(libpnd.PXML_MAXLEN)
+
+        # Find all PNDs for testing (as per testDiscovery).
+        search = libpnd.disco_search(testfiles, None)
+        n = libpnd.box_get_size(search)
+        node = libpnd.box_get_head(search)
+        pnds = [libpnd.box_get_key(node)]
+        for i in xrange(n-1):
+            node = libpnd.box_get_next(node)
+            pnds.append(libpnd.box_get_key(node))
+
+        # Accrue all their PXMLs.
+        for pth in pnds:
+            f = libpnd.libc.fopen(pth,'r')
+            ret = libpnd.pnd_seek_pxml(f)
+            self.assertEqual(ret, 1)
+
+            ret = libpnd.pnd_accrue_pxml(f, target, libpnd.PXML_MAXLEN)
+            self.assertEqual(ret, 1)
+            self.assertIn(target.value, open(pth,'rb').read())
+            self.assertEqual(target.value[:5], '<PXML')
+            # Some PNDs seem to have the first 4 bytes of the icon added on to
+            # the end of the accrued PXML.  Hopefully won't disrupt parsing.
+            self.assertIn('</PXML>', target.value[-13:])
+
+
+    def testParsing(self):
+        pxml = libpnd.pxml_get_by_path(
+            os.path.join(testfiles, 'The Lonely Tower-2.2.pnd'))
+        self.assertIsNotNone(pxml) # Check for failed parsing so we don't segfault.
+        for app in pxml:
+            if app is None: break
+            self.assertEqual(libpnd.pxml_get_unique_id(app), 'the-lonely-tower')
+            self.assertEqual(libpnd.pxml_get_app_name(app, 'en_US'), 'The Lonely Tower')
+            libpnd.pxml_delete(app)
 
 
 

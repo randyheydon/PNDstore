@@ -6,6 +6,16 @@ import ctypes as c
 
 p = c.CDLL('libpnd.so.1')
 
+
+#libc has at least one function needed to interact with libpnd.
+libc = c.CDLL('libc.so.6')
+
+FILE = c.c_void_p
+
+libc.fopen.argtypes = [c.c_char_p, c.c_char_p]
+libc.fopen.restype = FILE
+
+
 #Data structures defined in libpnd.
 #Many of these are defined as black-box types (void pointers).
 
@@ -18,6 +28,11 @@ box_node_t = c.c_void_p
 
 ##pnd_pxml
 pxml_handle = c.c_void_p
+
+##other...
+# In both pnd_discovery.c and pnd_utility.c, it's apparently assumed that no
+# PXML will be longer than 32 KiB.
+PXML_MAXLEN = 32 * 1024
 
 
 #Function prototypes.
@@ -77,6 +92,15 @@ disco_search.restype = box_handle
 disco_file = p.pnd_disco_file
 disco_file.argtypes = [c.c_char_p, c.c_char_p]
 disco_file.restype = box_handle
+
+##pnd_pndfiles
+pnd_seek_pxml = p.pnd_pnd_seek_pxml
+pnd_seek_pxml.argtypes = [FILE]
+pnd_seek_pxml.restype = c.c_ubyte
+
+pnd_accrue_pxml = p.pnd_pnd_accrue_pxml
+pnd_accrue_pxml.argtypes = [FILE, c.c_char_p, c.c_uint]
+pnd_accrue_pxml.restype = c.c_ubyte
 
 ##pnd_pxml
 pxml_fetch = p.pnd_pxml_fetch
