@@ -416,12 +416,19 @@ def update_local():
         raise ValueError("Your install of libpnd isn't behaving right!  pnd_disco_search has returned null.")
 
     # If at least one PND is found, add each to the database.
-    # NOTE, TODO: A package will be listed once for every application it holds.
-    # Make sure to filter that and process each file just once.
+    # Note that disco_search returns the path to each *application*.  PNDs with
+    # multiple apps will therefore be returned multiple times.  Process any
+    # such PNDs only once.
     n = libpnd.box_get_size(search)
+    done = set()
     if n > 0:
         node = libpnd.box_get_head(search)
-        update_local_file(libpnd.box_get_key(node))
+        path = libpnd.box_get_key(node)
+        update_local_file(path)
+        done.add(path)
         for i in xrange(n-1):
             node = libpnd.box_get_next(node)
-            update_local_file(libpnd.box_get_key(node))
+            path = libpnd.box_get_key(node)
+            if path not in done:
+                update_local_file(libpnd.box_get_key(node))
+                done.add(path)
