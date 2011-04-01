@@ -247,8 +247,7 @@ def update_local_file(path):
 
     # Extract all the useful information from the PND and add it to the table.
     # NOTE: libpnd doesn't yet have functions to look at the package element of
-    # a PND.  For now, check the first application element, and assume that
-    # it's representative of the package as a whole.
+    # a PND.  Instead, extract the PXML and parse that element manually.
     pxml_buffer = ctypes.create_string_buffer(libpnd.PXML_MAXLEN)
     f = libpnd.libc.fopen(path, 'r')
     if not libpnd.pnd_seek_pxml(f):
@@ -258,16 +257,19 @@ def update_local_file(path):
     try:
         pxml = etree.XML(pxml_buffer.value)
     except etree.ParseError:
-        # Then it's got those trailing characters from the icon.  Remove them!
+        # Then it's got extra trailing characters from the icon.  Remove them!
         pxml = etree.XML(pxml_buffer.value[:-6])
 
+    # Search for package element.
     pkg = pxml.find(xml_child('package'))
     if pkg is not None:
-        # Parse package element.
+        # Parse package element if it exists.
         pkgid = pkg.attrib['id']
 
         v = pkg.find(xml_child('version'))
         # TODO: Add support for 'type' attribute.
+        # NOTE: Using attrib instead of get will be fragile on non standards-
+        # compliant PNDs.
         version = '.'.join( (
             v.attrib['major'],
             v.attrib['minor'],
@@ -279,6 +281,9 @@ def update_local_file(path):
         author_website = author.get('website')
         author_email = author.get('email')
 
+        # Get title and description in the most preferred language available.
+        # All PNDs *should* have an en_US title and description, but this could
+        # result in an error if they don't.
         titles = {}; descs = {}
         for t in pkg.find(xml_child('titles')):
             titles[t.attrib['lang']] = t.text
@@ -297,6 +302,7 @@ def update_local_file(path):
         else: icon = None
 
     else:
+        # package element not found.
         # Assume first app element is representative of the package as a whole.
         pkg = apps[0]
         pkgid = libpnd.pxml_get_unique_id(pkg)
@@ -319,9 +325,11 @@ def update_local_file(path):
         if i is None: break
         n_apps += 1
 
+    # Create the full list of contained applications.
     applications = SEPCHAR.join([ libpnd.pxml_get_unique_id( apps[i] )
         for i in xrange(n_apps) ])
 
+    # Get all previewpics.  libpnd only supports two per application.
     previewpics = []
     for i in xrange(n_apps):
         p = libpnd.pxml_get_previewpic1( apps[i] )
@@ -334,6 +342,9 @@ def update_local_file(path):
 
     # TODO: Get licenses and source urls once libpnd has that functionality.
 
+    # Combine all categories in all apps.  libpnd supports two categories, each
+    # with two subcategories in each app.  No effort is made to uniquify the
+    # completed list.
     categories = []
     for i in xrange(n_apps):
         c = libpnd.pxml_get_main_category( apps[i] )
@@ -379,9 +390,8 @@ def update_local_file(path):
             None) ) # TODO: Get icon buffer with pnd_desktop's pnd_emit_icon_to_buffer
 
     # Clean up the pxml handle.
-    for i in apps:
-        if not i: break
-        libpnd.pxml_delete(i)
+    for i in xrange(n_apps):
+        libpnd.pxml_delete(apps[i])
 
 
 
