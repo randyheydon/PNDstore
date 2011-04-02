@@ -101,6 +101,7 @@ def open_repos():
             #If no error, add to list to be read by update_remote
             if url_handle != 304:
                 repos.append(url_handle)
+        db.commit()
 
         #TODO: If a repo gets removed from the cfg, perhaps this function
         #should remove its index entry and drop its table.
@@ -388,6 +389,7 @@ def update_local_file(path):
             None, # TODO: Sources once libpnd can pull them.
             categories,
             None) ) # TODO: Get icon buffer with pnd_desktop's pnd_emit_icon_to_buffer
+        db.commit()
 
     # Clean up the pxml handle.
     for i in xrange(n_apps):
@@ -408,6 +410,7 @@ def update_local():
         # the whole thing, whatever, I'll get to it.
         c.execute('Drop Table If Exists "%s"' % LOCAL_TABLE)
         create_table(c, LOCAL_TABLE)
+        db.commit()
 
     # Find PND files on searchpath.
     searchpath = ':'.join(options.get_searchpath())

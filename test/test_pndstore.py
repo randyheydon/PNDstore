@@ -2,7 +2,7 @@
 """Tests the various core (non-gui-related) elements of pndstore.
 For many of these tests to work, libpnd.so.1 must be loadable.  Make sure it's
 installed (ie: on a Pandora), or accessible by LD_LIBRARY_PATH."""
-import unittest, shutil, os.path, locale, sqlite3, ctypes
+import unittest, shutil, os.path, locale, sqlite3, ctypes, shutil
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -534,6 +534,28 @@ class TestPackages(unittest.TestCase):
         ps = packages.get_updates()
         self.assertEqual(len(ps), 1)
         self.assertEqual(ps[0].id, 'bubbman2')
+
+
+    def testRemove(self):
+        # Create a slightly-modified sacrificial file.
+        src = open(os.path.join(testfiles, 'fulltest.pnd')).read()
+        dstpath = os.path.join(testfiles, 'fulltest2.pnd')
+        with open(dstpath,'w') as dst:
+            dst.write(src.replace('sample-package', 'sample2', 1))
+        # Make sure it gets in the database.
+        database_update.update_local()
+        with sqlite3.connect(options.get_database()) as db:
+            self.assertIsNotNone( db.execute(
+                'Select * From "%s" Where id="sample2"'
+                % database_update.LOCAL_TABLE).fetchone() )
+        # Now remove it!
+        packages.Package('sample2').remove()
+        # And make sure it's gone.
+        self.assertFalse(os.path.exists(dstpath))
+        with sqlite3.connect(options.get_database()) as db:
+            self.assertIsNone( db.execute(
+                'Select * From "%s" Where id="sample2"'
+                % database_update.LOCAL_TABLE).fetchone() )
 
 
 

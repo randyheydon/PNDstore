@@ -5,9 +5,12 @@ a package, also allowing for installation and removal.  Also, the get_updates
 function is useful.
 """
 
-import options, libpnd, sqlite3, shutil
+import options, libpnd, sqlite3, os, shutil
 from distutils.version import LooseVersion
 from database_update import LOCAL_TABLE, REPO_INDEX_TABLE, SEPCHAR, sanitize_sql
+
+
+class PackageError(Exception): pass
 
 
 
@@ -94,18 +97,23 @@ class Package(object):
             pass
 
 
-    def remove(self, remove_appdatas=False):
+    def remove(self):
+        "Remove any locally-installed copy of this package."
         # Check if it's even locally installed.
-        # If not, error?
-        if remove_appdatas:
-            self.remove_appdatas()
-        # Finally remove the PND itself.
-        pass
+        if not self.local.exists:
+            raise PackageError("%s can't be removed since it's not installed." % self.id)
+        # If so, remove it.
+        os.remove(self.local.db_entry['uri'])
+        # Remove it from the local database.
+        with sqlite3.connect(options.get_database()) as db:
+            db.execute('Delete From "%s" Where id=?' % LOCAL_TABLE, (self.id,))
+            db.commit()
 
 
     def remove_appdatas(self):
         # Use libpnd to find location of all appdatas.
         # shutil.rmtree all of them
+        # Maybe create a way to remove appdatas of individual apps?
         pass
 
 
