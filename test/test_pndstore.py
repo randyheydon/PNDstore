@@ -61,9 +61,13 @@ class TestOptions(unittest.TestCase):
 
 
     def testLocale(self):
-        #Should return list in desired order, always ending with en_US.
-        #If no list is specified, should return (system lang, en_US).
-        self.assertEquals(options.get_locale(), [locale.getdefaultlocale()[0], 'en_US'])
+        # Should return list in desired order, always ending with en_US.
+        # If no list is specified, should return (system lang, en_US).
+        # If system has no default locale, it shouldn't appear in the list.
+        l = locale.getdefaultlocale()[0]
+        if l: locs = [l, 'en_US']
+        else: locs = ['en_US']
+        self.assertEquals(options.get_locale(), locs)
 
         with open(options.get_cfg(), 'w') as cfg:
             cfg.write(

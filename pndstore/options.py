@@ -62,6 +62,8 @@ def get_locale():
     if DEFAULT_KEY in locales:
         i = locales.index(DEFAULT_KEY)
         locales[i] = get_locale_default()
+        # An unconfigured system will have None, which breaks libpnd.
+        if not locales[i]: del locales[i]
 
     #The en_US locale should be available in all PNDs, so it should be a last resort.
     locales.append('en_US')
