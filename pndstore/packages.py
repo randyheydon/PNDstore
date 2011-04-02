@@ -5,9 +5,9 @@ a package, also allowing for installation and removal.  Also, the get_updates
 function is useful.
 """
 
-import options, libpnd, sqlite3, os, shutil
+import options, libpnd, database_update, sqlite3, os, shutil, urllib2
 from distutils.version import LooseVersion
-from database_update import LOCAL_TABLE, REPO_INDEX_TABLE, SEPCHAR, sanitize_sql
+from database_update import LOCAL_TABLE, REPO_INDEX_TABLE, SEPCHAR
 
 
 class PackageError(Exception): pass
@@ -57,17 +57,38 @@ class PackageInstance(object):
         with sqlite3.connect(options.get_database()) as db:
             db.row_factory = sqlite3.Row
             self.db_entry = db.execute('Select * From "%s" Where id=?'
-                % sanitize_sql(sourceid), (pkgid,)).fetchone()
+                % database_update.sanitize_sql(sourceid), (pkgid,)).fetchone()
         self.exists = self.db_entry is not None
         self.version = ( self.exists and PNDVersion(self.db_entry['version'])
             or PNDVersion('a') ) # This should be the lowest possible version.
 
 
-    def install(self, path): # Should it be something like "card, menu, desktop"?
-        # Put file in place.
+    def install(self, installdir):
+        # Check if this is actually a locally installed file already.
+        if os.path.exists(self.db_entry['uri']):
+            raise PackageError('Package is already installed.')
+            # Or maybe skip the rest of the function without erroring.
+
+        # Make connection and determine filename.
+        p = urllib2.urlopen(self.db_entry['uri'])
+        header = p.info().getheader('content-disposition')
+        fkey = 'filename="'
+        if header and (fkey in header):
+            n = header.find(fkey) + len(fkey)
+            filename = header[n:].split('"')[0]
+        else:
+            filename = os.path.basename(p.geturl())
+        path = os.path.join(installdir, filename)
+
+        # Put file in place.  No need to check if it already exists; if it
+        # does, we probably want to replace it anyways.
+        with open(path, 'w') as dest:
+            dest.write(p.read())
+
         # Update local database with new info.
-        # Make parent Package recreate its self.local.
-        pass
+        database_update.update_local_file(path)
+
+        # TODO, maybe: Make parent Package recreate its self.local.
 
 
 
