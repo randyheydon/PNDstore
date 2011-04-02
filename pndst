@@ -2,13 +2,16 @@
 """Provides a command-line interface to install and update PND applications."""
 
 import os.path
-from optparse import OptionParser
+from optparse import OptionParser, SUPPRESS_HELP
+from pndstore import options
 
-parser = OptionParser()
+parser = OptionParser(usage='Usage: %prog [options] [package id(s)]')
 
 parser.add_option('--working-dir', '-w',
     dest='working_dir', default=None,
-    metavar='DIRECTORY', help='find/store config and database in DIRECTORY [default: %default]')
+    metavar='DIRECTORY', help=
+        'find/store config and database in DIRECTORY [default: %s]'
+        % options.working_dir)
 
 parser.add_option('--update', '-y',
     action='store_true', dest='update', default=False,
@@ -20,13 +23,28 @@ parser.add_option('--update-local',
     action='store_true', dest='update_local', default=False,
     help='update database of locally installed applications')
 
+parser.add_option('--install', '-i',
+    action='store_true', dest='install', default=False,
+    help='install PND by package ID')
 parser.add_option('--upgrade', '-u',
     action='store_true', dest='upgrade', default=False,
     help='upgrade local applications with latest available')
 
+parser.add_option('--remove', '-R',
+    action='store_true', dest='remove', default=False,
+    help='remove PND by package ID')
+# TODO: Implement appdata removal.
+parser.add_option('--remove-appdata', '-n',
+    action='store_true', dest='remove_appdata', default=False,
+    help=SUPPRESS_HELP)#'remove appdata directories by package ID')
+
 opts, args = parser.parse_args()
 
-from pndstore import options, database_update, packages
+# Check for bad option combinations.
+if opts.install and opts.remove:
+    parser.error("Cannot simultaneously install and remove packages.")
+
+from pndstore import database_update, packages
 
 if opts.working_dir is not None:
     options.working_dir = opts.working_dir
@@ -42,3 +60,32 @@ if opts.update_remote:
     print "Updating remote database...",
     database_update.update_remote()
     print "Done."
+
+if opts.install:
+    for i in args:
+        print "Installing %s..." % i,
+        packages.Package(i).install()
+        print "Done."
+
+if opts.remove_appdata:
+    # This must come before remove so the Package objects can be created.
+    for i in args:
+        print "Removing all appdatas of %s..." % i,
+        packages.Package(i).remove_appdatas()
+        print "Done."
+if opts.remove:
+    for i in args:
+        print "Removing %s..." % i,
+        packages.Package(i).remove()
+        print "Done."
+
+if opts.upgrade:
+    # Comes after removal so unwanted packages are not upgraded just to be removed.
+    upgrades = packages.get_updates()
+    print "Packages to be upgraded:"
+    for pkg in upgrades:
+        print pkg.id, pkg.local.version, '->', pkg.get_latest().version
+    cont = raw_input("Continue upgrade? [Y/n]")
+    if cont in {'', 'Y', 'y'}:
+        for pkg in packages.get_updates():
+            pkg.install()
