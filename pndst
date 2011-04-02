@@ -88,4 +88,6 @@ if opts.upgrade:
     cont = raw_input("Continue upgrade? [Y/n]")
     if cont in {'', 'Y', 'y'}:
         for pkg in packages.get_updates():
+            print "Upgrading %s..." % pkg.id,
             pkg.install()
+            print "Done."
