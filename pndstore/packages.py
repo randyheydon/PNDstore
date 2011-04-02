@@ -5,7 +5,7 @@ a package, also allowing for installation and removal.  Also, the get_updates
 function is useful.
 """
 
-import options, libpnd, database_update, sqlite3, os, shutil, urllib2
+import options, database_update, sqlite3, os, shutil, urllib2, md5
 from distutils.version import LooseVersion
 from database_update import LOCAL_TABLE, REPO_INDEX_TABLE, SEPCHAR
 
@@ -80,10 +80,14 @@ class PackageInstance(object):
             filename = os.path.basename(p.geturl())
         path = os.path.join(installdir, filename)
 
+        data = p.read()
+        if not md5.new(data).hexdigest() == self.db_entry['md5']:
+            raise PackageError("File corrupted.  MD5 sums do not match.")
+
         # Put file in place.  No need to check if it already exists; if it
         # does, we probably want to replace it anyways.
-        with open(path, 'w') as dest:
-            dest.write(p.read())
+        with open(path, 'wb') as dest:
+            dest.write(data)
 
         # Update local database with new info.
         database_update.update_local_file(path)
