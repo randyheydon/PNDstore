@@ -24,8 +24,8 @@ parser.add_option('--update-local',
     help='update database of locally installed applications')
 
 parser.add_option('--install', '-i',
-    action='store_true', dest='install', default=False,
-    help='install PND by package ID')
+    dest='install', default=False,
+    metavar='DIRECTORY', help='install PND by package ID to DIRECTORY')
 parser.add_option('--upgrade', '-u',
     action='store_true', dest='upgrade', default=False,
     help='upgrade local applications with latest available')
@@ -42,8 +42,6 @@ opts, args = parser.parse_args()
 # Check for bad option combinations.
 if opts.install and opts.remove:
     parser.error("Cannot simultaneously install and remove packages.")
-if opts.install:
-    parser.error("Sorry, package installation hasn't been implemented yet.")
 if opts.remove_appdata:
     parser.error("Sorry, appdata removal hasn't been implemented yet.")
 
@@ -56,41 +54,43 @@ if opts.update:
     opts.update_remote = True
     opts.update_local = True
 if opts.update_local:
-    print "Updating local database...",
+    print "Updating local database..."
     database_update.update_local()
     print "Done."
 if opts.update_remote:
-    print "Updating remote database...",
+    print "Updating remote database..."
     database_update.update_remote()
     print "Done."
 
 if opts.install:
     for i in args:
-        print "Installing %s..." % i,
-        packages.Package(i).install()
+        print "Installing %s..." % i
+        packages.Package(i).install(opts.install)
         print "Done."
 
 if opts.remove_appdata:
     # This must come before remove so the Package objects can be created.
     for i in args:
-        print "Removing all appdatas of %s..." % i,
+        print "Removing all appdatas of %s..." % i
         packages.Package(i).remove_appdatas()
         print "Done."
 if opts.remove:
     for i in args:
-        print "Removing %s..." % i,
+        print "Removing %s..." % i
         packages.Package(i).remove()
         print "Done."
 
 if opts.upgrade:
     # Comes after removal so unwanted packages are not upgraded just to be removed.
     upgrades = packages.get_updates()
-    print "Packages to be upgraded:"
-    for pkg in upgrades:
-        print pkg.id, str(pkg.local.version), '->', str(pkg.get_latest().version)
-    cont = raw_input("Continue upgrade? [Y/n]")
-    if cont in {'', 'Y', 'y'}:
-        for pkg in packages.get_updates():
-            print "Upgrading %s..." % pkg.id,
-            pkg.upgrade()
-            print "Done."
+    if upgrades:
+        print "Packages to be upgraded:"
+        for pkg in upgrades:
+            print pkg.id, str(pkg.local.version), '->', str(pkg.get_latest().version)
+        cont = raw_input("Continue upgrade? [Y/n]")
+        if cont in {'', 'Y', 'y'}:
+            for pkg in upgrades:
+                print "Upgrading %s..." % pkg.id
+                pkg.upgrade()
+                print "Done."
+    else: print "No upgrades available."

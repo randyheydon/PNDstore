@@ -5,7 +5,7 @@ a package, also allowing for installation and removal.  Also, the get_updates
 function is useful.
 """
 
-import options, database_update, sqlite3, os, shutil, urllib2, md5
+import options, database_update, sqlite3, os, shutil, urllib2, md5, glob
 from distutils.version import LooseVersion
 from database_update import LOCAL_TABLE, REPO_INDEX_TABLE, SEPCHAR
 
@@ -118,8 +118,35 @@ class Package(object):
         return self.local.version >= m.version and self.local or m
 
 
-    def install(self, repo=None):
-        pass
+    def install(self, installdir):
+        """Installs the latest available version of the package to installdir.
+        Fails if package is already installed (which would create conflict in
+        libpnd) or if installdir is not on the searchpath (which would confuse
+        the database."""
+        # TODO: Repository selection (not just the most up-to-date one).
+        if self.local.exists:
+            raise PackageError("Locally installed version of %s already exists.  Use upgrade method to reinstall." % self.id)
+
+        if not os.path.isdir(installdir):
+            raise PackageError("%s is not a directory." % installdir)
+
+        valid = False
+        for i in options.get_searchpath():
+            for d in glob.glob(i):
+                if os.path.commonprefix((d, installdir)) == d:
+                    valid = True
+                    break
+        if not valid:
+            raise PackageError("Cannot install to %s since it's not on the searchpath."
+                % installdir)
+
+        # Install the latest remote.
+        m = self.get_latest_remote()
+        if not m.exists:
+            raise PackageError('No remote from which to install %s.' % self.id)
+        m.install(installdir)
+        # Local table has changed, so update the local PackageInstance.
+        self.local = PackageInstance(LOCAL_TABLE, self.id)
 
 
     def upgrade(self):
