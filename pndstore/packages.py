@@ -127,6 +127,8 @@ class Package(object):
         if not m.exists:
             raise PackageError('No remote from which to upgrade %s.' % self.id)
         m.install(installdir)
+        # Local table has changed, so update the local PackageInstance.
+        self.local = PackageInstance(LOCAL_TABLE, pkgid)
 
 
     def remove(self):
