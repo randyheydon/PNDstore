@@ -35,7 +35,7 @@ def get_database():
     """Gives full path to main sqlite database file."""
     #Unlike in get_cfg, the database file does not need to be created here, as
     #sqlite will create it automatically if needed.
-    return os.path.abspath(os.path.join(working_dir, 'app_database.sqlite'))
+    return os.path.abspath(os.path.join(get_working_dir(), 'app_database.sqlite'))
 
 
 def get_repos():

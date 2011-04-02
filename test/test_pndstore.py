@@ -40,7 +40,7 @@ class TestOptions(unittest.TestCase):
         #This file doesn't have to exist, because it will be created by the
         #database_update module.  But the directory must exist for the
         #database to be created.
-        self.assertTrue(os.path.isdir(options.get_working_dir()))
+        self.assertTrue(os.path.isdir(options.working_dir))
 
 
     def testRepositories(self):
