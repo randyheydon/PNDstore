@@ -103,19 +103,30 @@ class Package(object):
         self.remote = [PackageInstance(i, pkgid) for i in get_remote_tables()]
 
 
+    def get_latest_remote(self):
+        return max(self.remote, key=lambda x: x.version)
+
+
     def get_latest(self):
         """Returns PackageInstance of the most recent available version.
         Gives preference to locally installed version."""
-        m = max(self.remote, key=lambda x: x.version)
+        m = self.get_latest_remote()
         return self.local.version >= m.version and self.local or m
 
 
     def install(self, repo=None):
-        # Also functions as updater, I guess.
-        if repo is None:
-            self.get_latest().install()
-        else:
-            pass
+        pass
+
+
+    def upgrade(self):
+        installdir = os.path.dirname(self.local.db_entry['uri'])
+        # Remove and hope we don't get a failure that would result in a bad DB.
+        os.remove(self.local.db_entry['uri'])
+        # Install the latest remote.
+        m = self.get_latest_remote()
+        if not m.exists:
+            raise PackageError('No remote from which to upgrade %s.' % self.id)
+        m.install(installdir)
 
 
     def remove(self):

@@ -33,16 +33,19 @@ parser.add_option('--upgrade', '-u',
 parser.add_option('--remove', '-R',
     action='store_true', dest='remove', default=False,
     help='remove PND by package ID')
-# TODO: Implement appdata removal.
-parser.add_option('--remove-appdata', '-n',
+parser.add_option('--remove-appdata', '-N',
     action='store_true', dest='remove_appdata', default=False,
-    help=SUPPRESS_HELP)#'remove appdata directories by package ID')
+    help='remove appdata directories by package ID')
 
 opts, args = parser.parse_args()
 
 # Check for bad option combinations.
 if opts.install and opts.remove:
     parser.error("Cannot simultaneously install and remove packages.")
+if opts.install:
+    parser.error("Sorry, package installation hasn't been implemented yet.")
+if opts.remove_appdata:
+    parser.error("Sorry, appdata removal hasn't been implemented yet.")
 
 from pndstore import database_update, packages
 
@@ -84,10 +87,10 @@ if opts.upgrade:
     upgrades = packages.get_updates()
     print "Packages to be upgraded:"
     for pkg in upgrades:
-        print pkg.id, pkg.local.version, '->', pkg.get_latest().version
+        print pkg.id, str(pkg.local.version), '->', str(pkg.get_latest().version)
     cont = raw_input("Continue upgrade? [Y/n]")
     if cont in {'', 'Y', 'y'}:
         for pkg in packages.get_updates():
             print "Upgrading %s..." % pkg.id,
-            pkg.install()
+            pkg.upgrade()
             print "Done."
