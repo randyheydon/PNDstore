@@ -553,13 +553,15 @@ class TestPackages(unittest.TestCase):
                 'Select * From "%s" Where id="sample2"'
                 % database_update.LOCAL_TABLE).fetchone() )
         # Now remove it!
-        packages.Package('sample2').remove()
+        p = packages.Package('sample2')
+        p.remove()
         # And make sure it's gone.
         self.assertFalse(os.path.exists(dstpath))
         with sqlite3.connect(options.get_database()) as db:
             self.assertIsNone( db.execute(
                 'Select * From "%s" Where id="sample2"'
                 % database_update.LOCAL_TABLE).fetchone() )
+        self.assertFalse(p.local.exists)
 
 
 

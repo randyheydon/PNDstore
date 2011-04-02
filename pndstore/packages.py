@@ -128,7 +128,7 @@ class Package(object):
             raise PackageError('No remote from which to upgrade %s.' % self.id)
         m.install(installdir)
         # Local table has changed, so update the local PackageInstance.
-        self.local = PackageInstance(LOCAL_TABLE, pkgid)
+        self.local = PackageInstance(LOCAL_TABLE, self.id)
 
 
     def remove(self):
@@ -142,6 +142,8 @@ class Package(object):
         with sqlite3.connect(options.get_database()) as db:
             db.execute('Delete From "%s" Where id=?' % LOCAL_TABLE, (self.id,))
             db.commit()
+        # Local table has changed, so update the local PackageInstance.
+        self.local = PackageInstance(LOCAL_TABLE, self.id)
 
 
     def remove_appdatas(self):
