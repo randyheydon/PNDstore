@@ -6,3 +6,5 @@ The contents of test/testdata come from a variety of sources:
 * "BubbMan2.pnd" is by pymike, and is licensed under the LGPL.  See http://www.pygame.org/project-BubbMan+2-1114-.html
 * "Sparks-0.4.2.pnd" is by haltux, and is licensed under the GPL. See https://github.com/haltux/Sparks
 * "The Lonely Tower-2.2.pnd" is by the author, and is licensed under CC-BY-SA 3.0.  See http://randy.heydon.selfip.net/Programs/The%20Lonely%20Tower/
+
+The icon used here is the system-software-update icon from the GNOME icon theme, and is licensed under the GPL.

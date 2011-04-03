@@ -3,8 +3,8 @@ from distutils.core import setup
 
 setup(
     name = 'PNDstore',
-    version = '0',
-    description = 'thing', #TODO: a real description
+    version = '0.1',
+    description = 'Install and update PNDs',
     long_description = open('README.txt').read(),
     author = 'Randy Heydon',
     author_email = 'randy.heydon@clockworklab.net',
