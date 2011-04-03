@@ -257,7 +257,7 @@ def update_local_file(path):
         raise PNDError('PND file has no ending PXML tag.')
     try:
         pxml = etree.XML(pxml_buffer.value)
-    except etree.ParseError:
+    except: # etree.ParseError isn't in Python 2.6 :(
         # Then it's got extra trailing characters from the icon.  Remove them!
         pxml = etree.XML(pxml_buffer.value[:-6])
 
