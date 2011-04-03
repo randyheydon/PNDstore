@@ -88,7 +88,7 @@ if opts.upgrade:
         for pkg in upgrades:
             print pkg.id, str(pkg.local.version), '->', str(pkg.get_latest().version)
         cont = raw_input("Continue upgrade? [Y/n]")
-        if cont in {'', 'Y', 'y'}:
+        if cont in ('', 'Y', 'y'):
             for pkg in upgrades:
                 print "Upgrading %s..." % pkg.id
                 pkg.upgrade()
