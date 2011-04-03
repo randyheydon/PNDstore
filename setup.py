@@ -11,6 +11,6 @@ setup(
     url = 'https://github.com/Tempel/PNDstore',
     packages = ['pndstore', 'pndstore_gui'],
     package_data = {'pndstore': ['cfg/*']},
-    scripts = ['PNDstore', 'pndst'],
+    scripts = ['wrapper.sh', 'PNDstore', 'pndst'],
     license = 'LGPL',
 )
