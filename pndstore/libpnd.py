@@ -163,7 +163,7 @@ pxml_get_description_fr = p.pnd_pxml_get_description_fr
 pxml_get_description_fr.argtypes = [pxml_handle]
 pxml_get_description_fr.restype = c.c_char_p
 
-pxml_get_description = p.pnd_pxml_get_description
+pxml_get_description = p.pnd_pxml_get_app_description
 pxml_get_description.argtypes = [pxml_handle, c.c_char_p]
 pxml_get_description.restype = c.c_char_p
 
