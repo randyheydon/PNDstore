@@ -16,22 +16,29 @@ opts, args = parser.parse_args()
 if opts.working_dir is not None:
     options.working_dir = opts.working_dir
 
-from subprocess import call
+from subprocess import call, Popen
 
-# "not" since it returns 0 on Okay, 1 on Cancel.
-if not call(('zenity', '--question', '--title=PNDstore: update remote',
-    '--text=Update available package lists?')):
-    database_update.update_remote()
-if not call(('zenity', '--question', '--title=PNDstore: update local',
-    '--text=Update installed package lists?')):
-    database_update.update_local()
+# Tray icon so you know if it's crashed.
+tr = Popen(('zenity', '--notification'))
 
-upgrades = packages.get_updates()
-if upgrades:
-    uplist = '\n'.join([ ' '.join((pkg.id, str(pkg.local.version), '->', str(pkg.get_latest().version))) for pkg in upgrades])
-    if not call(('zenity', '--question', '--title=PNDstore: upgrades', '--text=Packages for upgrade:\n%s\nContinue?' % uplist)):
-        for pkg in upgrades: pkg.upgrade()
-        call(('zenity', '--info', '--title=PNDstore: complete', '--text=Upgrade complete.'))
+try:
+    # "not" since it returns 0 on Okay, 1 on Cancel.
+    if not call(('zenity', '--question', '--title=PNDstore: update remote',
+        '--text=Update available package lists?')):
+        database_update.update_remote()
+    if not call(('zenity', '--question', '--title=PNDstore: update local',
+        '--text=Update installed package lists?')):
+        database_update.update_local()
 
-else:
-    call(('zenity', '--info', '--title=PNDstore: nothing to upgrade', '--text=No package upgrades available.'))
+    upgrades = packages.get_updates()
+    if upgrades:
+        uplist = '\n'.join([ ' '.join((pkg.id, str(pkg.local.version), '->', str(pkg.get_latest().version))) for pkg in upgrades])
+        if not call(('zenity', '--question', '--title=PNDstore: upgrades', '--text=Packages for upgrade:\n%s\nContinue?' % uplist)):
+            for pkg in upgrades: pkg.upgrade()
+            call(('zenity', '--info', '--title=PNDstore: complete', '--text=Upgrade complete.'))
+
+    else:
+        call(('zenity', '--info', '--title=PNDstore: nothing to upgrade', '--text=No package upgrades available.'))
+
+finally:
+    tr.terminate()
