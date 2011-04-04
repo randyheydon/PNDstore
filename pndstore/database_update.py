@@ -9,8 +9,9 @@ they all create their own connections and cursors; since sqlite can handle
 concurrent database writes automatically, these functions should be thread safe.
 """
 
-import options, libpnd, urllib2, sqlite3, json, md5, ctypes
+import options, libpnd, urllib2, sqlite3, json, ctypes
 import xml.etree.cElementTree as etree
+from hashlib import md5
 
 #This module currently supports these versions of the PND repository
 #specification as seen at http://pandorawiki.org/PND_repository_specification
@@ -244,7 +245,11 @@ def update_local_file(path):
     apps = libpnd.pxml_get_by_path(path)
     if not apps:
         raise ValueError("%s doesn't seem to be a real PND file." % path)
-    with open(path, 'rb') as p: m = md5.new(p.read())
+
+    m = md5()
+    with open(path, 'rb') as p:
+        for chunk in iter(lambda: p.read(128*m.block_size), ''):
+            m.update(chunk)
 
     # Extract all the useful information from the PND and add it to the table.
     # NOTE: libpnd doesn't yet have functions to look at the package element of

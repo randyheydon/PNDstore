@@ -5,7 +5,8 @@ a package, also allowing for installation and removal.  Also, the get_updates
 function is useful.
 """
 
-import options, database_update, sqlite3, os, shutil, urllib2, md5, glob
+import options, database_update, sqlite3, os, shutil, urllib2, glob
+from hashlib import md5
 from distutils.version import LooseVersion
 from database_update import LOCAL_TABLE, REPO_INDEX_TABLE, SEPCHAR
 
@@ -80,19 +81,18 @@ class PackageInstance(object):
             filename = os.path.basename(p.geturl())
         path = os.path.join(installdir, filename)
 
-        data = p.read()
-        if not md5.new(data).hexdigest() == self.db_entry['md5']:
-            raise PackageError("File corrupted.  MD5 sums do not match.")
-
         # Put file in place.  No need to check if it already exists; if it
         # does, we probably want to replace it anyways.
+        m = md5()
         with open(path, 'wb') as dest:
-            dest.write(data)
+            for chunk in iter(lambda: p.read(128*m.block_size), ''):
+                m.update(chunk)
+                dest.write(chunk)
+        if not m.hexdigest() == self.db_entry['md5']:
+            raise PackageError("File corrupted.  MD5 sums do not match.")
 
         # Update local database with new info.
         database_update.update_local_file(path)
-
-        # TODO, maybe: Make parent Package recreate its self.local.
 
 
 
