@@ -432,11 +432,13 @@ def update_local():
     if n > 0:
         node = libpnd.box_get_head(search)
         path = libpnd.box_get_key(node)
-        update_local_file(path)
+        try: update_local_file(path)
+        except Exception as e: print "Could not process", path, e
         done.add(path)
         for i in xrange(n-1):
             node = libpnd.box_get_next(node)
             path = libpnd.box_get_key(node)
             if path not in done:
-                update_local_file(libpnd.box_get_key(node))
+                try: update_local_file(libpnd.box_get_key(node))
+                except Exception as e: print "Could not process", path, e
                 done.add(path)
