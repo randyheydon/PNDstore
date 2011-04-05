@@ -9,7 +9,7 @@ they all create their own connections and cursors; since sqlite can handle
 concurrent database writes automatically, these functions should be thread safe.
 """
 
-import options, libpnd, urllib2, sqlite3, json, ctypes
+import options, libpnd, urllib2, sqlite3, json, ctypes, warnings
 import xml.etree.cElementTree as etree
 from hashlib import md5
 
@@ -261,13 +261,15 @@ def update_local_file(path):
     if not libpnd.pnd_accrue_pxml(f, pxml_buffer, libpnd.PXML_MAXLEN):
         raise PNDError('PND file has no ending PXML tag.')
     try:
-        pxml = etree.XML(pxml_buffer.value)
+        # Strip extra trailing characters from the icon.  Remove them!
+        end_tag = pxml_buffer.value.rindex('>')
+        pxml = etree.XML(pxml_buffer.value[:end_tag+1])
+        # Search for package element.
+        pkg = pxml.find(xml_child('package'))
     except: # etree.ParseError isn't in Python 2.6 :(
-        # Then it's got extra trailing characters from the icon.  Remove them!
-        pxml = etree.XML(pxml_buffer.value[:-6])
+        warnings.warn("Invalid PXML in %s; will attempt processing" % path)
+        pxml = pkg = None
 
-    # Search for package element.
-    pkg = pxml.find(xml_child('package'))
     if pkg is not None:
         # Parse package element if it exists.
         pkgid = pkg.attrib['id']
@@ -373,6 +375,10 @@ def update_local_file(path):
     # inefficient.  Might be better if a connection or cursor object could be
     # passed in, but a new one could be generated if needed?
     with sqlite3.connect(options.get_database()) as db:
+
+        # Output from libpnd gives encoded bytestrings, not Unicode strings.
+        db.text_factory = str
+
         c = db.cursor()
         c.execute("""Insert Or Replace Into "%s" Values
             (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
@@ -433,12 +439,14 @@ def update_local():
         node = libpnd.box_get_head(search)
         path = libpnd.box_get_key(node)
         try: update_local_file(path)
-        except Exception as e: print "Could not process", path, e
+        except Exception as e:
+            warnings.warn("Could not process %s: %s" % (path, repr(e)))
         done.add(path)
         for i in xrange(n-1):
             node = libpnd.box_get_next(node)
             path = libpnd.box_get_key(node)
             if path not in done:
                 try: update_local_file(libpnd.box_get_key(node))
-                except Exception as e: print "Could not process", path, e
+                except Exception as e:
+                    warnings.warn("Could not process %s: %s" % (path, repr(e)))
                 done.add(path)

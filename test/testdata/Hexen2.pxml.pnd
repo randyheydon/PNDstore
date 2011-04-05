@@ -1,0 +1,51 @@
+
+<?xml version="1.0" encoding="UTF-8"?>
+<PXML xmlns="http://openpandora.org/namespaces/PXML" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="PXML_schema.xsd">
+<application id="hexen2.pickle" appdata="hexen2">
+  <title lang="en_US">Hexen II: Hammer of Thyrion NanoGL</title>
+ 
+  <exec command="runhexen2.sh"/>
+ 
+  <description lang="en_US">Free source port to support Linux, FreeBSD, other unices, Mac OS X & Windows</description>
+  <description lang="de_DE">Todo</description>
+  <info name="Hexen2 Setup" type="txt/html" src="readme.txt"/>
+  <previewpics>
+  <pic src="hexen2-pvw.png"/>
+  </previewpics>
+ 
+  <author name="Raven/Pickle" website="http://uhexen2.sourceforge.net/"/><!--Optional email and website, name required-->
+ 
+  <version major="1" minor="4" release="4" build="0"/><!--This programs version-->
+ 
+  <categories>
+    <category name="Game"><!--category like "Games", "Graphics", "Internet" etc-->
+    <subcategory name="ActionGame"/><!--subcategory, like "ActionGame", http://standards.freedesktop.org/menu-spec/latest/apa.html-->
+    </category>
+  </categories>
+ 
+</application>
+
+<application id="hexen2.pickle" appdata="hexen2">
+  <title lang="en_US">Hexen II: Hammer of Thyrion SDL</title>
+ 
+  <exec command="hexen2"/>
+ 
+  <description lang="en_US">Free source port to support Linux, FreeBSD, other unices, Mac OS X & Windows</description>
+  <description lang="de_DE">Todo</description>
+  <info name="Hexen2 Setup" type="txt/html" src="readme.txt"/>
+  <previewpics>
+  <pic src="hexen2-pvw.png"/>
+  </previewpics>
+ 
+  <author name="Raven/Pickle" website="http://uhexen2.sourceforge.net/"/><!--Optional email and website, name required-->
+ 
+  <version major="1" minor="4" release="4" build="0"/><!--This programs version-->
+ 
+  <categories>
+    <category name="Game"><!--category like "Games", "Graphics", "Internet" etc-->
+    <subcategory name="ActionGame"/><!--subcategory, like "ActionGame", http://standards.freedesktop.org/menu-spec/latest/apa.html-->
+    </category>
+  </categories>
+ 
+</application>
+</PXML>

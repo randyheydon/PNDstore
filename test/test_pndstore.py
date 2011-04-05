@@ -367,6 +367,27 @@ class TestDatabaseUpdate(unittest.TestCase):
         #    'git://git.openpandora.org;http://pandora.org/sources/package.tar.bz2')
         self.assertEqual(i['categories'],
             "Game;Emulator;System;Emulator;Game;StrategyGame;System")
+        c = db.execute('Select * From "%s" Where id="chromium-dev"'
+            %database_update.LOCAL_TABLE)
+        i = c.fetchone()
+        self.assertEqual(i['id'], 'chromium-dev')
+        self.assertEqual(i['version'], '10.0.642.1')
+        self.assertEqual(i['author_name'], "")
+        self.assertEqual(i['author_website'], "http://sites.google.com/a/chromium.org/dev/")
+        self.assertEqual(i['author_email'], None)
+        self.assertEqual(i['title'], "Chromium-Dev")
+        self.assertEqual(i['description'],
+            u"Chromium is an open-source browser project that aims to build a safer, faster, and more stable way for all users to experience the web. This site contains design documents, architecture overviews, testing information, and more to help you learn to build and work with the Chromium source code.\u201d.")
+        self.assertEqual(i['icon'], "product_logo_48.png")
+        self.assertEqual(i['uri'], os.path.join(testfiles, 'Chromium-dev.pxml.pnd'))
+        self.assertEqual(i['md5'], 'ec93f8e51b50be4ee51d87d342a6028a')
+        self.assertEqual(i['vendor'], None)
+        self.assertEqual(i['rating'], None)
+        self.assertEqual(i['applications'], 'chromium-dev')
+        self.assertEqual(i['previewpics'], './preview.jpg')
+        self.assertEqual(i['licenses'], None)
+        self.assertEqual(i['source'], None)
+        self.assertEqual(i['categories'], 'Network;WebBrowser')
         # TODO: An individual test for update_local_path.
         # TODO: Test for bad conditions that could cause segfaults.
 
@@ -390,7 +411,7 @@ class TestLibpnd(unittest.TestCase):
         # Note this gives the number of applications, not the number of
         # packages found.  This test has 4 packages, one of which holds 3 apps.
         n = libpnd.box_get_size(search)
-        self.assertEqual(n, 6)
+        self.assertEqual(n, 10)
 
         node = libpnd.box_get_head(search)
         pnds = [libpnd.box_get_key(node)]
@@ -398,7 +419,8 @@ class TestLibpnd(unittest.TestCase):
             node = libpnd.box_get_next(node)
             pnds.append(libpnd.box_get_key(node))
         self.assertSetEqual(set(map(os.path.basename, pnds)), {'BubbMan2.pnd',
-            'Sparks-0.4.2.pnd', 'The Lonely Tower-2.2.pnd', 'fulltest.pnd'})
+            'Sparks-0.4.2.pnd', 'The Lonely Tower-2.2.pnd', 'fulltest.pnd',
+            'Chromium-dev.pxml.pnd', 'Hexen2.pxml.pnd', 'scummvm-op.pxml.pnd'})
 
 
     def testParsing(self):
@@ -531,7 +553,7 @@ class TestPackages(unittest.TestCase):
         ps = packages.get_all()
         for p in ps:
             self.assertIsInstance(p, packages.Package)
-        self.assertEqual(len(ps), 4)
+        self.assertEqual(len(ps), 7)
 
 
     def testGetUpdates(self):
