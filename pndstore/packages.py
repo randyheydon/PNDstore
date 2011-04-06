@@ -185,6 +185,16 @@ class Package(object):
 
 
 
+def get_all():
+    "Returns Package object for every available package, local or remote."
+    tables = get_remote_tables()
+    tables.append(LOCAL_TABLE)
+    with sqlite3.connect(options.get_database()) as db:
+        c = db.execute(
+            ' Union '.join([ 'Select id From "%s"'%t for t in tables ]) )
+        return [ Package(i[0]) for i in c ]
+
+
 def get_all_local():
     """Returns Package object for every installed package."""
     with sqlite3.connect(options.get_database()) as db:
@@ -196,4 +206,6 @@ def get_updates():
     """Checks for updates for all installed packages.
     Returns a list of Package objects for which a remote version is newer than
     the installed version.  Does not include packages that are not locally installed."""
+    # TODO: Possibly optimize by using SQL Joins to only check packages that
+    # are both locally and remotely available.
     return [ i for i in get_all_local() if i.local is not i.get_latest() ]
