@@ -549,8 +549,8 @@ class TestPackages(unittest.TestCase):
         self.assertEqual(p.get_latest().version, '1.0.4.0')
 
 
-    def testGetAll(self):
-        ps = packages.get_all()
+    def testGetAllLocal(self):
+        ps = packages.get_all_local()
         for p in ps:
             self.assertIsInstance(p, packages.Package)
         self.assertEqual(len(ps), 7)

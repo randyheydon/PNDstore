@@ -185,7 +185,7 @@ class Package(object):
 
 
 
-def get_all():
+def get_all_local():
     """Returns Package object for every installed package."""
     with sqlite3.connect(options.get_database()) as db:
         c = db.execute('Select id From "%s"' % LOCAL_TABLE)
@@ -196,4 +196,4 @@ def get_updates():
     """Checks for updates for all installed packages.
     Returns a list of Package objects for which a remote version is newer than
     the installed version.  Does not include packages that are not locally installed."""
-    return [ i for i in get_all() if i.local is not i.get_latest() ]
+    return [ i for i in get_all_local() if i.local is not i.get_latest() ]
