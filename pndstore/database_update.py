@@ -446,7 +446,7 @@ def update_local():
             node = libpnd.box_get_next(node)
             path = libpnd.box_get_key(node)
             if path not in done:
-                try: update_local_file(libpnd.box_get_key(node))
+                try: update_local_file(path)
                 except Exception as e:
                     warnings.warn("Could not process %s: %s" % (path, repr(e)))
                 done.add(path)
