@@ -596,6 +596,13 @@ class TestPackages(unittest.TestCase):
         self.assertFalse(p.local.exists)
 
 
+    def testMissingTables(self):
+        os.remove(options.get_database())
+        p = packages.Package('not-even-real')
+        database_update.update_local()
+        p = packages.Package('not-even-real')
+
+
 
 class TestFileOperations(unittest.TestCase):
     pass
