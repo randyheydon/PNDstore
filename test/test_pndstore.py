@@ -262,7 +262,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         repo0 = os.path.join(options.get_working_dir(),
             os.path.basename(options.get_repos()[0]))
         with open(repo0, 'a') as r: r.write(',')
-        self.assertRaises(database_update.RepoError, database_update.update_remote)
+        self.assertRaises(ValueError, database_update.update_remote)
         #Test for incorrect version.
         with open(repo0, 'w') as r:
             r.write(self.repotxt % (os.path.basename(repo0), 99.7))

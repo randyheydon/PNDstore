@@ -114,129 +114,120 @@ def update_remote():
     """Adds a table for each repository to the database, adding an entry for each
     application listed in the repository."""
     #Open database connection.
-    db = sqlite3.connect(options.get_database())
-    db.row_factory = sqlite3.Row
-    c = db.cursor()
-    repos = open_repos()
-    try:
+    with sqlite3.connect(options.get_database()) as db:
+        db.row_factory = sqlite3.Row
+        c = db.cursor()
+        repos = open_repos()
         for r in repos:
 
             #Parse JSON.
             #TODO: Is there any way to gracefully handle a malformed feed?
-            try: repo = json.load(r)
-            except ValueError:
-                raise RepoError('Malformed JSON file from %s'%r.url)
+            repo = json.load(r)
 
-            try: 
-                #Check it's the right version.
-                v = repo["repository"]["version"]
-                if v not in REPO_VERSION:
-                    raise RepoError('Incorrect repository version (required one of %s, got %f)'
-                        % (REPO_VERSION, v))
+            #Check it's the right version.
+            v = repo["repository"]["version"]
+            if v not in REPO_VERSION:
+                raise RepoError(
+                    'Incorrect repository version (required one of %s, got %f)'
+                    % (REPO_VERSION, v))
 
-                #Create table from scratch for this repo.
-                #Drops it first so no old entries get left behind.
-                #TODO: Yes, there are probably more efficient ways than
-                #dropping the whole thing, whatever, I'll get to it.
-                #FIXME: Will r.url give the same url listed in the cfg?
-                table = sanitize_sql(r.url)
-                if table == LOCAL_TABLE or table == REPO_INDEX_TABLE:
-                    raise RepoError('Cannot handle a repo named "%s"; name is reserved for internal use.'%table)
-                c.execute('Drop Table If Exists "%s"' % table)
-                create_table(c, table)
+            #Create table from scratch for this repo.
+            #Drops it first so no old entries get left behind.
+            #TODO: Yes, there are probably more efficient ways than
+            #dropping the whole thing, whatever, I'll get to it.
+            #FIXME: Will r.url give the same url listed in the cfg?
+            table = sanitize_sql(r.url)
+            if table in (LOCAL_TABLE, REPO_INDEX_TABLE):
+                raise RepoError(
+                    'Cannot handle a repo named "%s"; name is reserved for internal use.'
+                    % table)
+            c.execute('Drop Table If Exists "%s"' % table)
+            create_table(c, table)
 
-                #Insert Or Replace for each package in repo.
-                #TODO: Break into subfunctions?
-                for pkg in repo["packages"]:
+            #Insert Or Replace for each package in repo.
+            #TODO: Break into subfunctions?
+            for pkg in repo["packages"]:
 
-                    #Get info in preferred language (fail if none available).
-                    title=None; description=None
-                    for lang in options.get_locale():
-                        try:
-                            title = pkg['localizations'][lang]['title']
-                            description = pkg['localizations'][lang]['description']
-                            break
-                        except KeyError: pass
-                    if title is None or description is None:
-                        raise RepoError('An application does not have any usable language')
-
-                    # These fields will not be present for every app.
-                    opt_field = {'vendor':None, 'icon':None, 'rating':None}
-                    for i in opt_field.iterkeys():
-                        try: opt_field[i] = pkg[i]
-                        except KeyError: pass
-
-                    author = {'name':None, 'website':None, 'email':None}
-                    for i in author.iterkeys():
-                        try: author[i] = pkg['author'][i]
-                        except KeyError: pass
-
-                    # These fields should only be used if not present in the
-                    # applications array.  Set them here, then override with
-                    # contents of applications array if present.
-                    opt_list = {'previewpics':None, 'licenses':None,
-                        'source':None, 'categories':None}
-                    for i in opt_list.iterkeys():
-                        try: opt_list[i] = SEPCHAR.join(pkg[i])
-                        except KeyError: pass
-
-                    applications = None
+                #Get info in preferred language (fail if none available).
+                title=None; description=None
+                for lang in options.get_locale():
                     try:
-                        applist = pkg['applications']
-                        applications = SEPCHAR.join(
-                            [app['id'] for app in applist] )
+                        title = pkg['localizations'][lang]['title']
+                        description = pkg['localizations'][lang]['description']
+                        break
+                    except KeyError: pass
+                if title is None or description is None:
+                    raise RepoError('A package does not have any usable language.')
 
-                        # Join all lists of all apps into one megalist.
-                        for i in opt_list.iterkeys():
-                            opt_list[i] = SEPCHAR.join([ SEPCHAR.join(app[i])
-                                for app in applist ] )
-
+                # These fields will not be present for every app.
+                opt_field = {'vendor':None, 'icon':None, 'rating':None}
+                for i in opt_field.iterkeys():
+                    try: opt_field[i] = pkg[i]
                     except KeyError: pass
 
-                    c.execute("""Insert Or Replace Into "%s" Values
-                        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
-                        ( pkg['id'],
-                        '.'.join( (
-                            pkg['version']['major'],
-                            pkg['version']['minor'],
-                            pkg['version']['release'],
-                            pkg['version']['build'], ) ),
-                        author['name'],
-                        author['website'],
-                        author['email'],
-                        title,
-                        description,
-                        opt_field['icon'],
-                        pkg['uri'],
-                        pkg['md5'],
-                        opt_field['vendor'],
-                        opt_field['rating'],
-                        applications,
-                        opt_list['previewpics'],
-                        opt_list['licenses'],
-                        opt_list['source'],
-                        opt_list['categories'],
-                        None) )
-                    #TODO: make sure no required fields are missing. covered by try and Not Null?
-                    #TODO: Don't erase icon_cache if icon hasn't changed.
+                author = {'name':None, 'website':None, 'email':None}
+                for i in author.iterkeys():
+                    try: author[i] = pkg['author'][i]
+                    except KeyError: pass
 
-                #Now repo is all updated, let the index know its etag/last-modified.
-                headers = r.info()
-                c.execute('Update "%s" Set name=?, etag=?,last_modified=? Where url=?'
-                    %REPO_INDEX_TABLE, (
-                        repo['repository']['name'],
-                        headers.getheader('ETag'),
-                        headers.getheader('Last-Modified'),
-                        table) )
+                # These fields should only be used if not present in the
+                # applications array.  Set them here, then override with
+                # contents of applications array if present.
+                opt_list = {'previewpics':None, 'licenses':None,
+                    'source':None, 'categories':None}
+                for i in opt_list.iterkeys():
+                    try: opt_list[i] = SEPCHAR.join(pkg[i])
+                    except KeyError: pass
 
-            except KeyError:
-                raise RepoError('A required field is missing from this repository')
-                #TODO: Make it indicate which field that is?
+                applications = None
+                try:
+                    applist = pkg['applications']
+                    applications = SEPCHAR.join(
+                        [app['id'] for app in applist] )
 
-    finally:
-        for i in repos: i.close()
-        db.commit()
-        c.close()
+                    # Join all lists of all apps into one megalist.
+                    for i in opt_list.iterkeys():
+                        opt_list[i] = SEPCHAR.join([ SEPCHAR.join(app[i])
+                            for app in applist ] )
+
+                except KeyError: pass
+
+                c.execute("""Insert Or Replace Into "%s" Values
+                    (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
+                    ( pkg['id'],
+                    '.'.join( (
+                        pkg['version']['major'],
+                        pkg['version']['minor'],
+                        pkg['version']['release'],
+                        pkg['version']['build'], ) ),
+                    author['name'],
+                    author['website'],
+                    author['email'],
+                    title,
+                    description,
+                    opt_field['icon'],
+                    pkg['uri'],
+                    pkg['md5'],
+                    opt_field['vendor'],
+                    opt_field['rating'],
+                    applications,
+                    opt_list['previewpics'],
+                    opt_list['licenses'],
+                    opt_list['source'],
+                    opt_list['categories'],
+                    None) )
+                #TODO: make sure no required fields are missing. covered by try and Not Null?
+                #TODO: Don't erase icon_cache if icon hasn't changed.
+
+            #Now repo is all updated, let the index know its etag/last-modified.
+            headers = r.info()
+            c.execute('Update "%s" Set name=?, etag=?,last_modified=? Where url=?'
+                %REPO_INDEX_TABLE, (
+                    repo['repository']['name'],
+                    headers.getheader('ETag'),
+                    headers.getheader('Last-Modified'),
+                    table) )
+            r.close() # Shouldn't need to, but might as well.
 
 
 
