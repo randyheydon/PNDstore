@@ -1,6 +1,6 @@
 """This package provides the graphical user interface to PNDstore."""
 
-import gtk, os.path
+import gtk, os.path, warnings
 from pndstore import database_update, packages
 
 class PNDstore(object):
@@ -45,6 +45,21 @@ class PNDstore(object):
                 icon, ) )
 
 
+    def display_warnings(self, func, *args, **kwargs):
+        """Calls func with *args and **kwargs, then displays a dialog with any
+        warnings detected."""
+        with warnings.catch_warnings(record=True) as w:
+            warnings.filterwarnings('always')
+            func(*args, **kwargs)
+            if len(w) > 0:
+                m = "The following errors were detected in %s:\n%s" % (
+                    func.__name__, '\n'.join( [str(i.message) for i in w]) )
+                dialog = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                    buttons=gtk.BUTTONS_OK, message_format=m)
+                dialog.run()
+                dialog.destroy()
+
+
     def get_selected(self):
         treemodel, treeiter = self.view.get_selection().get_selected()
         return packages.Package(treemodel.get_value(treeiter, 0))
@@ -71,6 +86,6 @@ class PNDstore(object):
 
 
     def on_button_update(self, button, *data):
-        database_update.update_local()
-        database_update.update_remote()
+        self.display_warnings(database_update.update_local)
+        self.display_warnings(database_update.update_remote)
         self.update_treeview()

@@ -19,6 +19,7 @@
     </columns>
   </object>
   <object class="GtkWindow" id="window">
+    <property name="title" translatable="yes">PNDstore</property>
     <signal name="destroy" handler="on_window_destroy"/>
     <child>
       <object class="GtkVBox" id="vbox1">
