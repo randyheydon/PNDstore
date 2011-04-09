@@ -301,8 +301,8 @@ class TestDatabaseUpdate(unittest.TestCase):
         # Make sure other two still update correctly.
         database_update.update_remote()
         r = options.get_repos()
-        self.assertRaises(sqlite3.OperationalError, self._check_entries, r[0])
-        self._check_entries(r[1])
+        self._check_entries(r[0])
+        self.assertRaises(sqlite3.OperationalError, self._check_entries, r[1])
         self._check_entries(r[2])
 
 

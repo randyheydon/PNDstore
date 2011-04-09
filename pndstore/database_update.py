@@ -93,15 +93,20 @@ def open_repos():
             # TODO: A way to force an update.
             req = urllib2.Request(url, headers={
                 'If-None-Match':etag, 'If-Modified-Since':last_modified})
+
             class NotModifiedHandler(urllib2.BaseHandler):
                 def http_error_304(self, req, fp, code, message, headers):
                     return 304
-            opener = urllib2.build_opener(NotModifiedHandler())
-            url_handle = opener.open(req)
 
-            #If no error, add to list to be read by update_remote
-            if url_handle != 304:
-                repos.append(url_handle)
+            opener = urllib2.build_opener(NotModifiedHandler())
+            try:
+                url_handle = opener.open(req)
+                # If no error, add to list to be read by update_remote.
+                if url_handle != 304:
+                    repos.append(url_handle)
+            except Exception as e:
+                warnings.warn("Could not reach repo %s: %s" % (url, repr(e)))
+
         db.commit()
 
         #TODO: If a repo gets removed from the cfg, perhaps this function
