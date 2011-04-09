@@ -39,8 +39,11 @@ def get_remote_tables():
     data from remote databases.  Returns a list of strings."""
     with sqlite3.connect(options.get_database()) as db:
         db.row_factory = sqlite3.Row
-        c = db.execute('Select url From "%s"' % REPO_INDEX_TABLE)
-        names = [i['url'] for i in c]
+        try:
+            c = db.execute('Select url From "%s"' % REPO_INDEX_TABLE)
+            names = [i['url'] for i in c]
+        except sqlite3.OperationalError:
+            names = []
     return names
 
 
@@ -57,8 +60,13 @@ class PackageInstance(object):
 
         with sqlite3.connect(options.get_database()) as db:
             db.row_factory = sqlite3.Row
-            self.db_entry = db.execute('Select * From "%s" Where id=?'
-                % database_update.sanitize_sql(sourceid), (pkgid,)).fetchone()
+            # Will set db_entry to None if entry or table doesn't exist.
+            try:
+                self.db_entry = db.execute('Select * From "%s" Where id=?'
+                    % database_update.sanitize_sql(sourceid), (pkgid,)).fetchone()
+            except sqlite3.OperationalError:
+                self.db_entry = None
+
         self.exists = self.db_entry is not None
         self.version = ( self.exists and PNDVersion(self.db_entry['version'])
             or PNDVersion('a') ) # This should be the lowest possible version.

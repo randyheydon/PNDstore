@@ -599,8 +599,21 @@ class TestPackages(unittest.TestCase):
     def testMissingTables(self):
         os.remove(options.get_database())
         p = packages.Package('not-even-real')
+        self.assertFalse(p.local.exists)
+        self.assertItemsEqual(p.remote, [])
+
         database_update.update_local()
         p = packages.Package('not-even-real')
+        self.assertFalse(p.local.exists)
+        self.assertItemsEqual(p.remote, [])
+
+        with sqlite3.connect(options.get_database()) as db:
+            db.execute("""Create Table "%s" (
+                url Text Primary Key, name Text, etag Text, last_modified Text
+                )""" % database_update.REPO_INDEX_TABLE)
+        p = packages.Package('not-even-real')
+        self.assertFalse(p.local.exists)
+        self.assertItemsEqual(p.remote, [])
 
 
 
