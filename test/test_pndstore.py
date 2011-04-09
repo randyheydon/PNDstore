@@ -258,17 +258,74 @@ class TestDatabaseUpdate(unittest.TestCase):
 
 
     def testBadRemote(self):
+        db = sqlite3.connect(options.get_database())
+        db.row_factory = sqlite3.Row
+        c = db.cursor()
+
         #Test for a malformed JSON file.
         repo0 = os.path.join(options.get_working_dir(),
             os.path.basename(options.get_repos()[0]))
         with open(repo0, 'a') as r: r.write(',')
-        self.assertRaises(ValueError, database_update.update_remote)
+        self.assertRaises(ValueError, database_update.update_remote_url,
+            database_update.open_repos()[0], c)
         #Test for incorrect version.
         with open(repo0, 'w') as r:
             r.write(self.repotxt % (os.path.basename(repo0), 99.7))
-        self.assertRaises(database_update.RepoError, database_update.update_remote)
+        self.assertRaises(database_update.RepoError, database_update.update_remote_url,
+            database_update.open_repos()[0], c)
+
+        database_update.update_remote()
+        # Bad repo (first) must not exist.
+        self.assertRaises(sqlite3.OperationalError, db.execute,
+            'Select * From "%s"'%options.get_repos()[0])
+        # Good repo (second) should have correct entries.
+        c = db.execute('Select * From "%s"'%options.get_repos()[1])
+        i = c.fetchone()
+        self.assertEqual(i['id'], 'viceVIC.pickle')
+        self.assertEqual(i['version'], '4.2.1.3')
+        self.assertEqual(i['author_name'], "Ported by Pickle")
+        self.assertEqual(i['author_website'], "http://places.there")
+        self.assertEqual(i['author_email'], "one@two.three")
+        self.assertEqual(i['title'], "Vice xVIC")
+        self.assertEqual(i['description'], "A VIC Emulator.")
+        self.assertEqual(i['icon'], "http://example.org/test.png")
+        self.assertEqual(i['uri'], "http://example.org/test.pnd")
+        self.assertEqual(i['md5'], '55538bb9c9ff46699c154d3de733c68b')
+        self.assertEqual(i['vendor'], "dflemstr")
+        self.assertEqual(i['rating'], 12)
+        self.assertEqual(i['applications'], None)
+        self.assertEqual(i['previewpics'], None)
+        self.assertEqual(i['licenses'], None)
+        self.assertEqual(i['source'], None)
+        self.assertEqual(i['categories'], "Game")
+        self.assertEqual(i['icon_cache'], None)
+        i = c.fetchone()
+        self.assertEqual(i['id'], 'Different VICE')
+        self.assertEqual(i['version'], '9.3b.3.6')
+        self.assertEqual(i['author_name'], None)
+        self.assertEqual(i['author_website'], None)
+        self.assertEqual(i['author_email'], None)
+        self.assertEqual(i['title'], "Vice xVIC, eh?")
+        self.assertEqual(i['description'], "It's not prejudice if I'm Canadian, right?!")
+        self.assertEqual(i['icon'], "http://example.org/test2.png")
+        self.assertEqual(i['uri'], "http://example.org/test2.pnd")
+        self.assertEqual(i['md5'], 'd3de733c68b55538bb9c9ff46699c154')
+        self.assertEqual(i['vendor'], "Tempel")
+        self.assertEqual(i['rating'], None)
+        self.assertEqual(i['applications'], None)
+        self.assertEqual(i['previewpics'], None)
+        self.assertEqual(i['licenses'], None)
+        self.assertEqual(i['source'], None)
+        self.assertEqual(i['categories'], "Game;Emulator")
+        self.assertEqual(i['icon_cache'], None)
+
         #TODO: Test for missing fields, including missing languages.
         #TODO: Test for malformed fields: uri, icon, md5.
+
+
+    def testMissingRemote(self):
+        # TODO: This.
+        pass
 
 
 
