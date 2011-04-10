@@ -164,6 +164,7 @@ class Package(object):
     def upgrade(self):
         installdir = os.path.dirname(self.local.db_entry['uri'])
         # Remove and hope we don't get a failure that would result in a bad DB.
+        # FIXME: This will fail suckily with no network connection.
         os.remove(self.local.db_entry['uri'])
         # Install the latest remote.
         m = self.get_latest_remote()

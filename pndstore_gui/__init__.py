@@ -55,7 +55,7 @@ class PNDstore(object):
                 m = "The following errors were detected in %s:\n%s" % (
                     func.__name__, '\n'.join( [str(i.message) for i in w]) )
                 dialog = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
-                    buttons=gtk.BUTTONS_OK, message_format=m)
+                    parent=self.window, buttons=gtk.BUTTONS_OK, message_format=m)
                 dialog.run()
                 dialog.destroy()
 
@@ -65,13 +65,51 @@ class PNDstore(object):
         return packages.Package(treemodel.get_value(treeiter, 0))
 
 
+    def install_etc(self, pkg):
+        "Wrapper around Package.install and Package.upgrade."
+        if pkg.local.exists:
+            if pkg.local is pkg.get_latest():
+                dialog = gtk.MessageDialog(buttons=gtk.BUTTONS_OK,
+                    parent=self.window, message_format='Already up-to-date.')
+                dialog.run()
+                dialog.destroy()
+            else:
+                d = gtk.MessageDialog(parent=self.window, flags=gtk.DIALOG_MODAL,
+                    type=gtk.MESSAGE_QUESTION, buttons=gtk.BUTTONS_YES_NO,
+                    message_format="Do you want to upgrade %s?\nVersion %s -> %s"
+                        % ( pkg.local.db_entry['title'], pkg.local.version,
+                        pkg.get_latest().version ) )
+                if d.run() == gtk.RESPONSE_YES:
+                    pkg.upgrade()
+                    self.update_treeview()
+                d.destroy()
+        else:
+            # Pop up install location chooser.
+            d = gtk.Dialog(title="Select install location.",
+                parent=self.window, flags=gtk.DIALOG_MODAL,
+                buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
+                    gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+            box = gtk.combo_box_new_text()
+            for t in packages.get_searchpath_full():
+                box.append_text(t)
+            box.set_active(0)
+            d.vbox.pack_start(box)
+            box.show()
+            if d.run() == gtk.RESPONSE_ACCEPT:
+                pkg.install(box.get_active_text())
+                self.update_treeview()
+            d.destroy()
+
+
+
     # Event callbacks.
     def on_window_destroy(self, window, *data):
         gtk.main_quit()
 
 
     def on_button_install(self, button, *data):
-        pass
+        p = self.get_selected()
+        self.install_etc(p)
 
 
     def on_button_remove(self, button, *data):
@@ -80,6 +118,7 @@ class PNDstore(object):
 
 
     def on_button_upgrade(self, button, *data):
+        # TODO: Give summary, request confirmation.
         for p in packages.get_updates():
             p.upgrade()
         self.update_treeview()
