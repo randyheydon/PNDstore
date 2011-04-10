@@ -196,8 +196,13 @@ class Package(object):
 def get_all():
     "Returns Package object for every available package, local or remote."
     tables = get_remote_tables()
-    tables.append(LOCAL_TABLE)
     with sqlite3.connect(options.get_database()) as db:
+        try:
+            # Dirty, dirty hack to check if LOCAL_TABLE exists.  Can't add it
+            # to the Union query if it doesn't.
+            db.execute('Select id From "%s" Where 0=1' % LOCAL_TABLE)
+            tables.append(LOCAL_TABLE)
+        except sqlite3.OperationalError: pass
         c = db.execute(
             ' Union '.join([ 'Select id From "%s"'%t for t in tables ]) )
         return [ Package(i[0]) for i in c ]
@@ -206,7 +211,8 @@ def get_all():
 def get_all_local():
     """Returns Package object for every installed package."""
     with sqlite3.connect(options.get_database()) as db:
-        c = db.execute('Select id From "%s"' % LOCAL_TABLE)
+        try: c = db.execute('Select id From "%s"' % LOCAL_TABLE)
+        except sqlite3.OperationalError: return []
         return [ Package(i[0]) for i in c ]
 
 

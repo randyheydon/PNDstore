@@ -82,10 +82,11 @@ def open_repos():
             result = c.fetchone()
 
             if result is None:
-                #This repo is not yet in the index (it's the first time it's
-                #been checked), so make an empty entry for it.
+                # This repo is not yet in the index (it's the first time it's
+                # been checked), so make an empty entry and table for it.
                 c.execute('Insert Into "%s" (url) Values (?)'
                     %REPO_INDEX_TABLE, (table_id,) )
+                create_table(c, table_id)
                 result = (None, None)
             etag, last_modified = result
 

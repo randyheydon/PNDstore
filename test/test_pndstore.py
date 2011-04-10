@@ -279,8 +279,8 @@ class TestDatabaseUpdate(unittest.TestCase):
                 database_update.open_repos()[0], c)
 
         database_update.update_remote()
-        # Bad repo (first) must not exist.
-        self.assertRaises(sqlite3.OperationalError, self._check_entries,
+        # Bad repo (first) must be empty.
+        self.assertRaises(TypeError, self._check_entries,
             options.get_repos()[0])
         # Good repo (second) should have correct entries.
         self._check_entries(options.get_repos()[1])
@@ -302,7 +302,7 @@ class TestDatabaseUpdate(unittest.TestCase):
         database_update.update_remote()
         r = options.get_repos()
         self._check_entries(r[0])
-        self.assertRaises(sqlite3.OperationalError, self._check_entries, r[1])
+        self.assertRaises(TypeError, self._check_entries, r[1])
         self._check_entries(r[2])
 
 
@@ -531,7 +531,9 @@ class TestLibpnd(unittest.TestCase):
 class TestPackages(unittest.TestCase):
     cfg_text = (
 """{
-    "repositories": ["file://%s"],
+    "repositories": [
+        "file://%s"
+    ],
     "locales": ["default"],
     "searchpath": ["%s"]
 }""" % (os.path.abspath(os.path.join(testfiles, 'repo.json')), testfiles))
@@ -632,16 +634,23 @@ class TestPackages(unittest.TestCase):
 
 
     def testMissingTables(self):
+        # No tables exist.
         os.remove(options.get_database())
         p = packages.Package('not-even-real')
         self.assertFalse(p.local.exists)
         self.assertItemsEqual(p.remote, [])
+        self.assertItemsEqual(packages.get_all_local(), [])
+        self.assertItemsEqual(packages.get_all(), [])
 
+        # Local, but not remote or remote index tables exist.
         database_update.update_local()
         p = packages.Package('not-even-real')
         self.assertFalse(p.local.exists)
         self.assertItemsEqual(p.remote, [])
+        self.assertEqual(len(packages.get_all_local()), 7)
+        self.assertEqual(len(packages.get_all()), 7)
 
+        # Empty index table exists.
         with sqlite3.connect(options.get_database()) as db:
             db.execute("""Create Table "%s" (
                 url Text Primary Key, name Text, etag Text, last_modified Text
@@ -649,11 +658,18 @@ class TestPackages(unittest.TestCase):
         p = packages.Package('not-even-real')
         self.assertFalse(p.local.exists)
         self.assertItemsEqual(p.remote, [])
+        self.assertEqual(len(packages.get_all_local()), 7)
+        self.assertEqual(len(packages.get_all()), 7)
 
-
-
-class TestFileOperations(unittest.TestCase):
-    pass
+        # Table in index, but doesn't successfully reach it.
+        with open(options.get_cfg()) as f:
+            txt = f.read()
+        new = txt.split('\n')
+        new.insert(2, '"http://notreal.ihope",')
+        with open(options.get_cfg(), 'w') as f:
+            f.write('\n'.join(new))
+        database_update.update_remote()
+        packages.get_all()
 
 
 
