@@ -65,7 +65,7 @@ class PNDstore(object):
         return packages.Package(treemodel.get_value(treeiter, 0))
 
 
-    def install_etc(self, pkg):
+    def install(self, pkg):
         "Wrapper around Package.install and Package.upgrade."
         if pkg.local.exists:
             if pkg.local is pkg.get_latest():
@@ -101,6 +101,24 @@ class PNDstore(object):
             d.destroy()
 
 
+    def remove(self, pkg):
+        "Wrapper around Package.remove."
+        if pkg.local.exists:
+            d = gtk.MessageDialog( parent=self.window, flags=gtk.DIALOG_MODAL,
+                type=gtk.MESSAGE_QUESTION, buttons=gtk.BUTTONS_YES_NO,
+                message_format="Are you sure you want to remove %s?\nAppdata will not be removed."
+                    % pkg.local.db_entry['title'] )
+            if d.run() == gtk.RESPONSE_YES:
+                pkg.remove()
+                self.update_treeview()
+            d.destroy()
+        else:
+            d = gtk.MessageDialog( parent=self.window, flags=gtk.DIALOG_MODAL,
+                buttons=gtk.BUTTONS_OK, message_format="Not locally installed.")
+            d.run()
+            d.destroy()
+
+
 
     # Event callbacks.
     def on_window_destroy(self, window, *data):
@@ -109,12 +127,12 @@ class PNDstore(object):
 
     def on_button_install(self, button, *data):
         p = self.get_selected()
-        self.install_etc(p)
+        self.install(p)
 
 
     def on_button_remove(self, button, *data):
-        self.get_selected().remove()
-        self.update_treeview()
+        p = self.get_selected()
+        self.remove(p)
 
 
     def on_button_upgrade(self, button, *data):
