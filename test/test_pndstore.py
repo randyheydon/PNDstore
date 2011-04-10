@@ -567,6 +567,12 @@ class TestPackages(unittest.TestCase):
         self.assertEquals(packages.get_remote_tables(), options.get_repos())
 
 
+    def testGetSearchpathFull(self):
+        # This may also seem gratuitous, but it expands the globbing used in
+        # libpnd so we know exactly where PNDs can be installed.
+        self.assertItemsEqual(packages.get_searchpath_full(), options.get_searchpath())
+
+
     def testPackageInstance(self):
         p = packages.PackageInstance(database_update.LOCAL_TABLE, 'bubbman2')
         self.assertGreater(p.version, '1.0.3.0')

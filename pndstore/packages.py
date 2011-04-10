@@ -47,6 +47,13 @@ def get_remote_tables():
     return names
 
 
+def get_searchpath_full():
+    paths = []
+    for p in options.get_searchpath():
+        paths.extend(glob.iglob(p))
+    return paths
+
+
 
 class PackageInstance(object):
     """Gives information on a package as available from a specific source.
@@ -132,19 +139,16 @@ class Package(object):
         libpnd) or if installdir is not on the searchpath (which would confuse
         the database."""
         # TODO: Repository selection (not just the most up-to-date one).
+
+        installdir = os.path.abspath(installdir)
+
         if self.local.exists:
             raise PackageError("Locally installed version of %s already exists.  Use upgrade method to reinstall." % self.id)
 
-        if not os.path.isdir(installdir):
+        elif not os.path.isdir(installdir):
             raise PackageError("%s is not a directory." % installdir)
 
-        valid = False
-        for i in options.get_searchpath():
-            for d in glob.glob(i):
-                if os.path.commonprefix((d, installdir)) == d:
-                    valid = True
-                    break
-        if not valid:
+        elif installdir not in get_searchpath_full():
             raise PackageError("Cannot install to %s since it's not on the searchpath."
                 % installdir)
 
