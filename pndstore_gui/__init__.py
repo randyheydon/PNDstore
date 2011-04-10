@@ -119,6 +119,19 @@ class PNDstore(object):
             d.destroy()
 
 
+    def upgrade_all(self, pkgs):
+        d = gtk.MessageDialog( parent=self.window, flags=gtk.DIALOG_MODAL,
+            buttons=gtk.BUTTONS_YES_NO, message_format=
+                "The following packages have updates available:\n%s\nUpdate all?"
+                % '\n'.join(['%s %s -> %s' % (p.local.db_entry['title'],
+                    p.local.version, p.get_latest().version) for p in pkgs]) )
+        if d.run() == gtk.RESPONSE_YES:
+            for p in pkgs:
+                p.upgrade()
+            self.update_treeview()
+        d.destroy()
+
+
 
     # Event callbacks.
     def on_window_destroy(self, window, *data):
@@ -126,20 +139,15 @@ class PNDstore(object):
 
 
     def on_button_install(self, button, *data):
-        p = self.get_selected()
-        self.install(p)
+        self.install(self.get_selected())
 
 
     def on_button_remove(self, button, *data):
-        p = self.get_selected()
-        self.remove(p)
+        self.remove(self.get_selected())
 
 
     def on_button_upgrade(self, button, *data):
-        # TODO: Give summary, request confirmation.
-        for p in packages.get_updates():
-            p.upgrade()
-        self.update_treeview()
+        self.upgrade_all(packages.get_updates())
 
 
     def on_button_update(self, button, *data):
