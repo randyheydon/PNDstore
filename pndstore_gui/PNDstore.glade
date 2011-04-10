@@ -37,6 +37,7 @@
                 <property name="can_focus">True</property>
                 <property name="model">packagelist</property>
                 <property name="rules_hint">True</property>
+                <signal name="row_activated" handler="on_row_activated"/>
                 <child>
                   <object class="GtkTreeViewColumn" id="column_img">
                     <child>

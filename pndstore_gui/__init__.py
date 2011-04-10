@@ -138,6 +138,10 @@ class PNDstore(object):
         gtk.main_quit()
 
 
+    def on_row_activated(self, treeview, path, view_column, *data):
+        self.install(self.get_selected())
+
+
     def on_button_install(self, button, *data):
         self.install(self.get_selected())
 
