@@ -14,6 +14,7 @@ class PNDstore(object):
 
         self.window = builder.get_object('window')
         self.window.show()
+        self.window.maximize()
 
         # Load up the treemodel with package info.
         self.view = builder.get_object('treeview')
