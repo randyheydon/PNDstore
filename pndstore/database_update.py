@@ -251,9 +251,9 @@ def update_local_file(path):
         raise ValueError("%s doesn't seem to be a real PND file." % path)
 
     m = md5()
-    with open(path, 'rb') as p:
-        for chunk in iter(lambda: p.read(128*m.block_size), ''):
-            m.update(chunk)
+    #with open(path, 'rb') as p:
+    #    for chunk in iter(lambda: p.read(128*m.block_size), ''):
+    #        m.update(chunk)
 
     # Extract all the useful information from the PND and add it to the table.
     # NOTE: libpnd doesn't yet have functions to look at the package element of
