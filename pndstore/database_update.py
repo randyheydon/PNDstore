@@ -271,7 +271,7 @@ def update_local_file(path):
         # Search for package element.
         pkg = pxml.find(xml_child('package'))
     except: # etree.ParseError isn't in Python 2.6 :(
-        warnings.warn("Invalid PXML in %s; will attempt processing" % path)
+        #warnings.warn("Invalid PXML in %s; will attempt processing" % path)
         pxml = pkg = None
 
     if pkg is not None:
