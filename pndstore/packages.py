@@ -107,7 +107,9 @@ class PackageInstance(object):
             raise PackageError("File corrupted.  MD5 sums do not match.")
 
         # Update local database with new info.
-        database_update.update_local_file(path)
+        with sqlite3.connect(options.get_database()) as db:
+            database_update.update_local_file(path, db)
+            db.commit()
 
 
 
