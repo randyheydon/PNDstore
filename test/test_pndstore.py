@@ -446,7 +446,7 @@ class TestLibpnd(unittest.TestCase):
         # Note this gives the number of applications, not the number of
         # packages found.  This test has 4 packages, one of which holds 3 apps.
         n = libpnd.box_get_size(search)
-        self.assertEqual(n, 10)
+        self.assertEqual(n, 12)
 
         node = libpnd.box_get_head(search)
         pnds = [libpnd.box_get_key(node)]
@@ -455,7 +455,8 @@ class TestLibpnd(unittest.TestCase):
             pnds.append(libpnd.box_get_key(node))
         self.assertSetEqual(set(map(os.path.basename, pnds)), {'BubbMan2.pnd',
             'Sparks-0.4.2.pnd', 'The Lonely Tower-2.2.pnd', 'fulltest.pnd',
-            'Chromium-dev.pxml.pnd', 'Hexen2.pxml.pnd', 'scummvm-op.pxml.pnd'})
+            'Chromium-dev.pxml.pnd', 'Hexen2.pxml.pnd', 'scummvm-op.pxml.pnd',
+            'java.pxml.pnd'})
 
 
     def testParsing(self):
@@ -597,8 +598,8 @@ class TestPackages(unittest.TestCase):
         for p in ps:
             self.assertIsInstance(p, packages.Package)
         # TODO: Some better tests for this function.
-        # 28 in repo.json, 7 local, 2 in both.
-        self.assertEqual(len(ps), 28 + 7 - 2)
+        # 28 in repo.json, 8 local, 2 in both.
+        self.assertEqual(len(ps), 28 + 8 - 2)
 
 
     def testGetAllLocal(self):
@@ -606,7 +607,7 @@ class TestPackages(unittest.TestCase):
         for p in ps:
             self.assertIsInstance(p, packages.Package)
         # TODO: Some better tests for this function.
-        self.assertEqual(len(ps), 7)
+        self.assertEqual(len(ps), 8)
 
 
     def testGetUpdates(self):
@@ -653,8 +654,7 @@ class TestPackages(unittest.TestCase):
         p = packages.Package('not-even-real')
         self.assertFalse(p.local.exists)
         self.assertItemsEqual(p.remote, [])
-        self.assertEqual(len(packages.get_all_local()), 7)
-        self.assertEqual(len(packages.get_all()), 7)
+        self.assertEqual(len(packages.get_all_local()), len(packages.get_all()))
 
         # Empty index table exists.
         with sqlite3.connect(options.get_database()) as db:
@@ -664,8 +664,7 @@ class TestPackages(unittest.TestCase):
         p = packages.Package('not-even-real')
         self.assertFalse(p.local.exists)
         self.assertItemsEqual(p.remote, [])
-        self.assertEqual(len(packages.get_all_local()), 7)
-        self.assertEqual(len(packages.get_all()), 7)
+        self.assertEqual(len(packages.get_all_local()), len(packages.get_all()))
 
         # Table in index, but doesn't successfully reach it.
         with open(options.get_cfg()) as f:

@@ -319,10 +319,10 @@ def update_local_file(path, db_conn):
         pkg = apps[0]
         pkgid = libpnd.pxml_get_unique_id(pkg)
         version = '.'.join( (
-            libpnd.pxml_get_version_major(pkg),
-            libpnd.pxml_get_version_minor(pkg),
-            libpnd.pxml_get_version_release(pkg),
-            libpnd.pxml_get_version_build(pkg), ) )
+            str(libpnd.pxml_get_version_major(pkg)),
+            str(libpnd.pxml_get_version_minor(pkg)),
+            str(libpnd.pxml_get_version_release(pkg)),
+            str(libpnd.pxml_get_version_build(pkg)), ) )
         author_name = libpnd.pxml_get_author_name(pkg)
         author_website = libpnd.pxml_get_author_website(pkg)
         author_email = None # NOTE: libpnd has no pxml_get_author_email?
