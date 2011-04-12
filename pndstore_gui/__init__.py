@@ -152,7 +152,14 @@ class PNDstore(object):
 
 
     def on_button_upgrade(self, button, *data):
-        self.upgrade_all(packages.get_updates())
+        p = packages.get_updates()
+        if len(p) > 0:
+            self.upgrade_all(p)
+        else:
+            d = gtk.MessageDialog( parent=self.window, flags=gtk.DIALOG_MODAL,
+                buttons=gtk.BUTTONS_OK, message_format="No upgrades available.")
+            d.run()
+            d.destroy()
 
 
     def on_button_update(self, button, *data):
