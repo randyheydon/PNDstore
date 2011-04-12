@@ -90,12 +90,19 @@ class PNDstore(object):
                 parent=self.window, flags=gtk.DIALOG_MODAL,
                 buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
                     gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+
             box = gtk.combo_box_new_text()
             for t in packages.get_searchpath_full():
                 box.append_text(t)
             box.set_active(0)
             d.vbox.pack_start(box)
             box.show()
+
+            words = gtk.Label(
+                '\nThis will take a while after clicking OK.  Please be patient.')
+            d.vbox.pack_start(words)
+            words.show()
+
             if d.run() == gtk.RESPONSE_ACCEPT:
                 pkg.install(box.get_active_text())
                 self.update_treeview()
@@ -123,7 +130,7 @@ class PNDstore(object):
     def upgrade_all(self, pkgs):
         d = gtk.MessageDialog( parent=self.window, flags=gtk.DIALOG_MODAL,
             buttons=gtk.BUTTONS_YES_NO, message_format=
-                "The following packages have updates available:\n%s\nUpdate all?"
+                "The following packages have updates available:\n%s\n\nUpdate all?\nThis will take a while after clicking Yes.  Please be patient."
                 % '\n'.join(['%s %s -> %s' % (p.local.db_entry['title'],
                     p.local.version, p.get_latest().version) for p in pkgs]) )
         if d.run() == gtk.RESPONSE_YES:
