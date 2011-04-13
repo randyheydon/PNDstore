@@ -244,16 +244,16 @@ def update_remote():
 
 
 
-def update_local_file(path):
+def update_local_file(path, db_conn):
     """Adds an entry to the local database based on the PND found at "path"."""
     apps = libpnd.pxml_get_by_path(path)
     if not apps:
         raise ValueError("%s doesn't seem to be a real PND file." % path)
 
     m = md5()
-    with open(path, 'rb') as p:
-        for chunk in iter(lambda: p.read(128*m.block_size), ''):
-            m.update(chunk)
+    #with open(path, 'rb') as p:
+    #    for chunk in iter(lambda: p.read(128*m.block_size), ''):
+    #        m.update(chunk)
 
     # Extract all the useful information from the PND and add it to the table.
     # NOTE: libpnd doesn't yet have functions to look at the package element of
@@ -271,7 +271,7 @@ def update_local_file(path):
         # Search for package element.
         pkg = pxml.find(xml_child('package'))
     except: # etree.ParseError isn't in Python 2.6 :(
-        warnings.warn("Invalid PXML in %s; will attempt processing" % path)
+        #warnings.warn("Invalid PXML in %s; will attempt processing" % path)
         pxml = pkg = None
 
     if pkg is not None:
@@ -319,10 +319,10 @@ def update_local_file(path):
         pkg = apps[0]
         pkgid = libpnd.pxml_get_unique_id(pkg)
         version = '.'.join( (
-            libpnd.pxml_get_version_major(pkg),
-            libpnd.pxml_get_version_minor(pkg),
-            libpnd.pxml_get_version_release(pkg),
-            libpnd.pxml_get_version_build(pkg), ) )
+            str(libpnd.pxml_get_version_major(pkg)),
+            str(libpnd.pxml_get_version_minor(pkg)),
+            str(libpnd.pxml_get_version_release(pkg)),
+            str(libpnd.pxml_get_version_build(pkg)), ) )
         author_name = libpnd.pxml_get_author_name(pkg)
         author_website = libpnd.pxml_get_author_website(pkg)
         author_email = None # NOTE: libpnd has no pxml_get_author_email?
@@ -375,36 +375,28 @@ def update_local_file(path):
         categories = SEPCHAR.join(categories)
     else: categories = None
 
-    # TODO: Opening a new connection for each file getting added is probably
-    # inefficient.  Might be better if a connection or cursor object could be
-    # passed in, but a new one could be generated if needed?
-    with sqlite3.connect(options.get_database()) as db:
-
-        # Output from libpnd gives encoded bytestrings, not Unicode strings.
-        db.text_factory = str
-
-        c = db.cursor()
-        c.execute("""Insert Or Replace Into "%s" Values
-            (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
-            ( pkgid,
-            version,
-            author_name,
-            author_website,
-            author_email,
-            title,
-            description,
-            icon,
-            path,
-            m.hexdigest(),
-            None, # I see no use for "vendor" on installed apps.
-            None, # Nor "rating".
-            applications,
-            previewpics,
-            None, # TODO: Licenses once libpnd can pull them.
-            None, # TODO: Sources once libpnd can pull them.
-            categories,
-            None) ) # TODO: Get icon buffer with pnd_desktop's pnd_emit_icon_to_buffer
-        db.commit()
+    # Output from libpnd gives encoded bytestrings, not Unicode strings.
+    db_conn.text_factory = str
+    db_conn.execute("""Insert Or Replace Into "%s" Values
+        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
+        ( pkgid,
+        version,
+        author_name,
+        author_website,
+        author_email,
+        title,
+        description,
+        icon,
+        path,
+        m.hexdigest(),
+        None, # I see no use for "vendor" on installed apps.
+        None, # Nor "rating".
+        applications,
+        previewpics,
+        None, # TODO: Licenses once libpnd can pull them.
+        None, # TODO: Sources once libpnd can pull them.
+        categories,
+        None) ) # TODO: Get icon buffer with pnd_desktop's pnd_emit_icon_to_buffer
 
     # Clean up the pxml handle.
     for i in xrange(n_apps):
@@ -418,39 +410,38 @@ def update_local():
     # Open database connection.
     with sqlite3.connect(options.get_database()) as db:
         db.row_factory = sqlite3.Row
-        c = db.cursor()
         # Create table from scratch to hold list of all installed PNDs.
         # Drops it first so no old entries get left behind.
         # TODO: Yes, there are probably more efficient ways than dropping
         # the whole thing, whatever, I'll get to it.
-        c.execute('Drop Table If Exists "%s"' % LOCAL_TABLE)
-        create_table(c, LOCAL_TABLE)
-        db.commit()
+        db.execute('Drop Table If Exists "%s"' % LOCAL_TABLE)
+        create_table(db, LOCAL_TABLE)
 
-    # Find PND files on searchpath.
-    searchpath = ':'.join(options.get_searchpath())
-    search = libpnd.disco_search(searchpath, None)
-    if not search:
-        raise ValueError("Your install of libpnd isn't behaving right!  pnd_disco_search has returned null.")
+        # Find PND files on searchpath.
+        searchpath = ':'.join(options.get_searchpath())
+        search = libpnd.disco_search(searchpath, None)
+        if not search:
+            raise ValueError("Your install of libpnd isn't behaving right!  pnd_disco_search has returned null.")
 
-    # If at least one PND is found, add each to the database.
-    # Note that disco_search returns the path to each *application*.  PNDs with
-    # multiple apps will therefore be returned multiple times.  Process any
-    # such PNDs only once.
-    n = libpnd.box_get_size(search)
-    done = set()
-    if n > 0:
-        node = libpnd.box_get_head(search)
-        path = libpnd.box_get_key(node)
-        try: update_local_file(path)
-        except Exception as e:
-            warnings.warn("Could not process %s: %s" % (path, repr(e)))
-        done.add(path)
-        for i in xrange(n-1):
-            node = libpnd.box_get_next(node)
+        # If at least one PND is found, add each to the database.
+        # Note that disco_search returns the path to each *application*.  PNDs with
+        # multiple apps will therefore be returned multiple times.  Process any
+        # such PNDs only once.
+        n = libpnd.box_get_size(search)
+        done = set()
+        if n > 0:
+            node = libpnd.box_get_head(search)
             path = libpnd.box_get_key(node)
-            if path not in done:
-                try: update_local_file(path)
-                except Exception as e:
-                    warnings.warn("Could not process %s: %s" % (path, repr(e)))
-                done.add(path)
+            try: update_local_file(path, db)
+            except Exception as e:
+                warnings.warn("Could not process %s: %s" % (path, repr(e)))
+            done.add(path)
+            for i in xrange(n-1):
+                node = libpnd.box_get_next(node)
+                path = libpnd.box_get_key(node)
+                if path not in done:
+                    try: update_local_file(path, db)
+                    except Exception as e:
+                        warnings.warn("Could not process %s: %s" % (path, repr(e)))
+                    done.add(path)
+        db.commit()

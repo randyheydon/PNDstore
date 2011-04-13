@@ -14,6 +14,7 @@ class PNDstore(object):
 
         self.window = builder.get_object('window')
         self.window.show()
+        self.window.maximize()
 
         # Load up the treemodel with package info.
         self.view = builder.get_object('treeview')
@@ -26,7 +27,14 @@ class PNDstore(object):
 
         for p in packages.get_all():
             latest = p.get_latest()
+            remote = p.get_latest_remote()
             info = latest.db_entry
+
+            if remote.exists:
+                v_remote = remote.db_entry['version']
+            else:
+                v_remote = None
+
             if p.local.exists:
                 v_local = p.local.db_entry['version']
                 if p.local is not latest:
@@ -41,7 +49,7 @@ class PNDstore(object):
                 info['title'],
                 info['description'],
                 v_local,
-                info['version'],
+                v_remote,
                 icon, ) )
 
 
@@ -89,12 +97,19 @@ class PNDstore(object):
                 parent=self.window, flags=gtk.DIALOG_MODAL,
                 buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
                     gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+
             box = gtk.combo_box_new_text()
             for t in packages.get_searchpath_full():
                 box.append_text(t)
             box.set_active(0)
             d.vbox.pack_start(box)
             box.show()
+
+            words = gtk.Label(
+                '\nThis will take a while after clicking OK.  Please be patient.')
+            d.vbox.pack_start(words)
+            words.show()
+
             if d.run() == gtk.RESPONSE_ACCEPT:
                 pkg.install(box.get_active_text())
                 self.update_treeview()
@@ -122,7 +137,7 @@ class PNDstore(object):
     def upgrade_all(self, pkgs):
         d = gtk.MessageDialog( parent=self.window, flags=gtk.DIALOG_MODAL,
             buttons=gtk.BUTTONS_YES_NO, message_format=
-                "The following packages have updates available:\n%s\nUpdate all?"
+                "The following packages have updates available:\n%s\n\nUpdate all?\nThis will take a while after clicking Yes.  Please be patient."
                 % '\n'.join(['%s %s -> %s' % (p.local.db_entry['title'],
                     p.local.version, p.get_latest().version) for p in pkgs]) )
         if d.run() == gtk.RESPONSE_YES:
@@ -151,7 +166,14 @@ class PNDstore(object):
 
 
     def on_button_upgrade(self, button, *data):
-        self.upgrade_all(packages.get_updates())
+        p = packages.get_updates()
+        if len(p) > 0:
+            self.upgrade_all(p)
+        else:
+            d = gtk.MessageDialog( parent=self.window, flags=gtk.DIALOG_MODAL,
+                buttons=gtk.BUTTONS_OK, message_format="No upgrades available.")
+            d.run()
+            d.destroy()
 
 
     def on_button_update(self, button, *data):
