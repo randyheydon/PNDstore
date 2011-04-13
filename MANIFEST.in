@@ -1,3 +1,4 @@
 include README.txt LICENSE.txt
 recursive-include pndstore/cfg *
 recursive-include test/testdata *
+recursive-include resources *
