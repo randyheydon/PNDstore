@@ -23,8 +23,8 @@ class PNDVersion(LooseVersion):
             other = self.__class__(other)
 
         for i,j in map(None, self.version, other.version):
-            iStr = isinstance(i, str)
-            jStr = isinstance(j, str)
+            iStr = isinstance(i, basestring)
+            jStr = isinstance(j, basestring)
             if iStr and not jStr: return -1
             elif jStr and not iStr: return 1
             else:
@@ -76,7 +76,7 @@ class PackageInstance(object):
 
         self.exists = self.db_entry is not None
         self.version = ( self.exists and PNDVersion(self.db_entry['version'])
-            or PNDVersion('a') ) # This should be the lowest possible version.
+            or PNDVersion('A') ) # This should be the lowest possible version.
 
 
     def install(self, installdir):

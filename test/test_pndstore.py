@@ -555,6 +555,7 @@ class TestPackages(unittest.TestCase):
         self.assertGreater(v('2.0.0.0'), v('1.999'))
         self.assertGreater(v('1.1'), v('1.0'))
         self.assertLess(v('2.0a'), v('2.0'))
+        self.assertLess(v(u'2.0a'), v(u'2.0'))
         self.assertLess(v('2.0'), v('2.1a'))
         self.assertLess(v('2.0a'), v('2.0.1a'))
         self.assertLess(v('2.0a.1'), v('2.0b'))
