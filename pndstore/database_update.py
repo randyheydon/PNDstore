@@ -294,19 +294,27 @@ def update_local_file(path, db_conn):
         author_email = author.get('email')
 
         # Get title and description in the most preferred language available.
-        # All PNDs *should* have an en_US title and description, but this could
-        # result in an error if they don't.
+        # All PNDs *should* have an en_US title, but this could result in an
+        # error if they don't.  Descriptions are optional.
         titles = {}; descs = {}
         for t in pkg.find(xml_child('titles')):
             titles[t.attrib['lang']] = t.text
-        for d in pkg.find(xml_child('descriptions')):
-            descs[d.attrib['lang']] = d.text
         for l in options.get_locale():
             try:
                 title = titles[l]
-                description = descs[l]
                 break
             except KeyError: pass
+
+        try:
+            for d in pkg.find(xml_child('descriptions')):
+                descs[d.attrib['lang']] = d.text
+            for l in options.get_locale():
+                try:
+                    description = descs[l]
+                    break
+                except KeyError: pass
+        except TypeError:
+            description = None
 
         i = pkg.find(xml_child('icon'))
         if i is not None:
