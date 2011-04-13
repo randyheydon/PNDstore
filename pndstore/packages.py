@@ -39,9 +39,19 @@ def get_remote_tables():
     data from remote databases.  Returns a list of strings."""
     with sqlite3.connect(options.get_database()) as db:
         db.row_factory = sqlite3.Row
-        c = db.execute('Select url From "%s"' % REPO_INDEX_TABLE)
-        names = [i['url'] for i in c]
+        try:
+            c = db.execute('Select url From "%s"' % REPO_INDEX_TABLE)
+            names = [i['url'] for i in c]
+        except sqlite3.OperationalError:
+            names = []
     return names
+
+
+def get_searchpath_full():
+    paths = []
+    for p in options.get_searchpath():
+        paths.extend(glob.iglob(p))
+    return paths
 
 
 
@@ -57,8 +67,13 @@ class PackageInstance(object):
 
         with sqlite3.connect(options.get_database()) as db:
             db.row_factory = sqlite3.Row
-            self.db_entry = db.execute('Select * From "%s" Where id=?'
-                % database_update.sanitize_sql(sourceid), (pkgid,)).fetchone()
+            # Will set db_entry to None if entry or table doesn't exist.
+            try:
+                self.db_entry = db.execute('Select * From "%s" Where id=?'
+                    % database_update.sanitize_sql(sourceid), (pkgid,)).fetchone()
+            except sqlite3.OperationalError:
+                self.db_entry = None
+
         self.exists = self.db_entry is not None
         self.version = ( self.exists and PNDVersion(self.db_entry['version'])
             or PNDVersion('a') ) # This should be the lowest possible version.
@@ -92,7 +107,9 @@ class PackageInstance(object):
             raise PackageError("File corrupted.  MD5 sums do not match.")
 
         # Update local database with new info.
-        database_update.update_local_file(path)
+        with sqlite3.connect(options.get_database()) as db:
+            database_update.update_local_file(path, db)
+            db.commit()
 
 
 
@@ -124,19 +141,16 @@ class Package(object):
         libpnd) or if installdir is not on the searchpath (which would confuse
         the database."""
         # TODO: Repository selection (not just the most up-to-date one).
+
+        installdir = os.path.abspath(installdir)
+
         if self.local.exists:
             raise PackageError("Locally installed version of %s already exists.  Use upgrade method to reinstall." % self.id)
 
-        if not os.path.isdir(installdir):
+        elif not os.path.isdir(installdir):
             raise PackageError("%s is not a directory." % installdir)
 
-        valid = False
-        for i in options.get_searchpath():
-            for d in glob.glob(i):
-                if os.path.commonprefix((d, installdir)) == d:
-                    valid = True
-                    break
-        if not valid:
+        elif installdir not in get_searchpath_full():
             raise PackageError("Cannot install to %s since it's not on the searchpath."
                 % installdir)
 
@@ -152,6 +166,7 @@ class Package(object):
     def upgrade(self):
         installdir = os.path.dirname(self.local.db_entry['uri'])
         # Remove and hope we don't get a failure that would result in a bad DB.
+        # FIXME: This will fail suckily with no network connection.
         os.remove(self.local.db_entry['uri'])
         # Install the latest remote.
         m = self.get_latest_remote()
@@ -186,9 +201,25 @@ class Package(object):
 
 
 def get_all():
+    "Returns Package object for every available package, local or remote."
+    tables = get_remote_tables()
+    with sqlite3.connect(options.get_database()) as db:
+        try:
+            # Dirty, dirty hack to check if LOCAL_TABLE exists.  Can't add it
+            # to the Union query if it doesn't.
+            db.execute('Select id From "%s" Where 0=1' % LOCAL_TABLE)
+            tables.append(LOCAL_TABLE)
+        except sqlite3.OperationalError: pass
+        c = db.execute(
+            ' Union '.join([ 'Select id From "%s"'%t for t in tables ]) )
+        return [ Package(i[0]) for i in c ]
+
+
+def get_all_local():
     """Returns Package object for every installed package."""
     with sqlite3.connect(options.get_database()) as db:
-        c = db.execute('Select id From "%s"' % LOCAL_TABLE)
+        try: c = db.execute('Select id From "%s"' % LOCAL_TABLE)
+        except sqlite3.OperationalError: return []
         return [ Package(i[0]) for i in c ]
 
 
@@ -196,4 +227,6 @@ def get_updates():
     """Checks for updates for all installed packages.
     Returns a list of Package objects for which a remote version is newer than
     the installed version.  Does not include packages that are not locally installed."""
-    return [ i for i in get_all() if i.local is not i.get_latest() ]
+    # TODO: Possibly optimize by using SQL Joins to only check packages that
+    # are both locally and remotely available.
+    return [ i for i in get_all_local() if i.local is not i.get_latest() ]

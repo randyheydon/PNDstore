@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PXML xmlns="http://openpandora.org/namespaces/PXML">
+	<application id="instjava" appdata="java">
+
+		<title lang="en_US">Java Install</title>
+
+		<exec background="false" command="instjava.sh"/>
+
+		<icon src="java-icon.jpg"/>
+
+		<description lang="en_US">Create the java symlink</description>
+
+		<!-- <author name="David Goldsmith" website="http://www.rebirthofxeen.com"/> -->
+
+<!--		<version major="1" minor="0" release="3" build="0"/>
+		<osversion major="1" minor="0" release="0" build="0"/> -->
+
+		<categories>
+			<category name="System">
+			</category>
+		</categories>
+
+	</application>
+
+	<application id="uninstjava" appdata="java">
+
+		<title lang="en_US">Java Uninstall</title>
+
+		<exec background="false" command="uninstjava.sh"/>
+
+		<icon src="java-icon.jpg"/>
+
+		<description lang="en_US">Delete the java symlink</description>
+
+		<!-- <author name="David Goldsmith" website="http://www.rebirthofxeen.com"/> -->
+
+<!--		<version major="1" minor="0" release="3" build="0"/>
+		<osversion major="1" minor="0" release="0" build="0"/> -->
+
+		<categories>
+			<category name="System">
+			</category>
+		</categories>
+
+	</application>
+
+</PXML>

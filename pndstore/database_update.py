@@ -82,10 +82,11 @@ def open_repos():
             result = c.fetchone()
 
             if result is None:
-                #This repo is not yet in the index (it's the first time it's
-                #been checked), so make an empty entry for it.
+                # This repo is not yet in the index (it's the first time it's
+                # been checked), so make an empty entry and table for it.
                 c.execute('Insert Into "%s" (url) Values (?)'
                     %REPO_INDEX_TABLE, (table_id,) )
+                create_table(c, table_id)
                 result = (None, None)
             etag, last_modified = result
 
@@ -93,15 +94,20 @@ def open_repos():
             # TODO: A way to force an update.
             req = urllib2.Request(url, headers={
                 'If-None-Match':etag, 'If-Modified-Since':last_modified})
+
             class NotModifiedHandler(urllib2.BaseHandler):
                 def http_error_304(self, req, fp, code, message, headers):
                     return 304
-            opener = urllib2.build_opener(NotModifiedHandler())
-            url_handle = opener.open(req)
 
-            #If no error, add to list to be read by update_remote
-            if url_handle != 304:
-                repos.append(url_handle)
+            opener = urllib2.build_opener(NotModifiedHandler())
+            try:
+                url_handle = opener.open(req)
+                # If no error, add to list to be read by update_remote.
+                if url_handle != 304:
+                    repos.append(url_handle)
+            except Exception as e:
+                warnings.warn("Could not reach repo %s: %s" % (url, repr(e)))
+
         db.commit()
 
         #TODO: If a repo gets removed from the cfg, perhaps this function
@@ -110,146 +116,144 @@ def open_repos():
     return repos
 
 
+def update_remote_url(url, cursor):
+    """Adds database table for the repository held by the url object."""
+    #Parse JSON.
+    #TODO: Is there any way to gracefully handle a malformed feed?
+    repo = json.load(url)
+
+    #Check it's the right version.
+    v = repo["repository"]["version"]
+    if v not in REPO_VERSION:
+        raise RepoError(
+            'Incorrect repository version (required one of %s, got %f)'
+            % (REPO_VERSION, v))
+
+    #Create table from scratch for this repo.
+    #Drops it first so no old entries get left behind.
+    #TODO: Yes, there are probably more efficient ways than
+    #dropping the whole thing, whatever, I'll get to it.
+    #FIXME: Will r.url give the same url listed in the cfg?
+    table = sanitize_sql(url.url)
+    if table in (LOCAL_TABLE, REPO_INDEX_TABLE):
+        raise RepoError(
+            'Cannot handle a repo named "%s"; name is reserved for internal use.'
+            % table)
+    cursor.execute('Drop Table If Exists "%s"' % table)
+    create_table(cursor, table)
+
+    #Insert Or Replace for each package in repo.
+    #TODO: Break into subfunctions?
+    for pkg in repo["packages"]:
+
+        #Get info in preferred language (fail if none available).
+        title=None; description=None
+        for lang in options.get_locale():
+            try:
+                title = pkg['localizations'][lang]['title']
+                description = pkg['localizations'][lang]['description']
+                break
+            except KeyError: pass
+        if title is None or description is None:
+            raise RepoError('A package does not have any usable language.')
+
+        # These fields will not be present for every app.
+        opt_field = {'vendor':None, 'icon':None, 'rating':None}
+        for i in opt_field.iterkeys():
+            try: opt_field[i] = pkg[i]
+            except KeyError: pass
+
+        author = {'name':None, 'website':None, 'email':None}
+        for i in author.iterkeys():
+            try: author[i] = pkg['author'][i]
+            except KeyError: pass
+
+        # These fields should only be used if not present in the
+        # applications array.  Set them here, then override with
+        # contents of applications array if present.
+        opt_list = {'previewpics':None, 'licenses':None,
+            'source':None, 'categories':None}
+        for i in opt_list.iterkeys():
+            try: opt_list[i] = SEPCHAR.join(pkg[i])
+            except KeyError: pass
+
+        applications = None
+        try:
+            applist = pkg['applications']
+            applications = SEPCHAR.join(
+                [app['id'] for app in applist] )
+
+            # Join all lists of all apps into one megalist.
+            for i in opt_list.iterkeys():
+                opt_list[i] = SEPCHAR.join([ SEPCHAR.join(app[i])
+                    for app in applist ] )
+
+        except KeyError: pass
+
+        cursor.execute("""Insert Or Replace Into "%s" Values
+            (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
+            ( pkg['id'],
+            '.'.join( (
+                pkg['version']['major'],
+                pkg['version']['minor'],
+                pkg['version']['release'],
+                pkg['version']['build'], ) ),
+            author['name'],
+            author['website'],
+            author['email'],
+            title,
+            description,
+            opt_field['icon'],
+            pkg['uri'],
+            pkg['md5'],
+            opt_field['vendor'],
+            opt_field['rating'],
+            applications,
+            opt_list['previewpics'],
+            opt_list['licenses'],
+            opt_list['source'],
+            opt_list['categories'],
+            None) )
+        #TODO: make sure no required fields are missing. covered by try and Not Null?
+        #TODO: Don't erase icon_cache if icon hasn't changed.
+
+    #Now repo is all updated, let the index know its etag/last-modified.
+    headers = url.info()
+    cursor.execute('Update "%s" Set name=?, etag=?,last_modified=? Where url=?'
+        %REPO_INDEX_TABLE, (
+            repo['repository']['name'],
+            headers.getheader('ETag'),
+            headers.getheader('Last-Modified'),
+            table) )
+
+
 def update_remote():
     """Adds a table for each repository to the database, adding an entry for each
     application listed in the repository."""
     #Open database connection.
-    db = sqlite3.connect(options.get_database())
-    db.row_factory = sqlite3.Row
-    c = db.cursor()
-    repos = open_repos()
-    try:
+    with sqlite3.connect(options.get_database()) as db:
+        db.row_factory = sqlite3.Row
+        c = db.cursor()
+        repos = open_repos()
         for r in repos:
-
-            #Parse JSON.
-            #TODO: Is there any way to gracefully handle a malformed feed?
-            try: repo = json.load(r)
-            except ValueError:
-                raise RepoError('Malformed JSON file from %s'%r.url)
-
-            try: 
-                #Check it's the right version.
-                v = repo["repository"]["version"]
-                if v not in REPO_VERSION:
-                    raise RepoError('Incorrect repository version (required one of %s, got %f)'
-                        % (REPO_VERSION, v))
-
-                #Create table from scratch for this repo.
-                #Drops it first so no old entries get left behind.
-                #TODO: Yes, there are probably more efficient ways than
-                #dropping the whole thing, whatever, I'll get to it.
-                #FIXME: Will r.url give the same url listed in the cfg?
-                table = sanitize_sql(r.url)
-                if table == LOCAL_TABLE or table == REPO_INDEX_TABLE:
-                    raise RepoError('Cannot handle a repo named "%s"; name is reserved for internal use.'%table)
-                c.execute('Drop Table If Exists "%s"' % table)
-                create_table(c, table)
-
-                #Insert Or Replace for each package in repo.
-                #TODO: Break into subfunctions?
-                for pkg in repo["packages"]:
-
-                    #Get info in preferred language (fail if none available).
-                    title=None; description=None
-                    for lang in options.get_locale():
-                        try:
-                            title = pkg['localizations'][lang]['title']
-                            description = pkg['localizations'][lang]['description']
-                            break
-                        except KeyError: pass
-                    if title is None or description is None:
-                        raise RepoError('An application does not have any usable language')
-
-                    # These fields will not be present for every app.
-                    opt_field = {'vendor':None, 'icon':None, 'rating':None}
-                    for i in opt_field.iterkeys():
-                        try: opt_field[i] = pkg[i]
-                        except KeyError: pass
-
-                    author = {'name':None, 'website':None, 'email':None}
-                    for i in author.iterkeys():
-                        try: author[i] = pkg['author'][i]
-                        except KeyError: pass
-
-                    # These fields should only be used if not present in the
-                    # applications array.  Set them here, then override with
-                    # contents of applications array if present.
-                    opt_list = {'previewpics':None, 'licenses':None,
-                        'source':None, 'categories':None}
-                    for i in opt_list.iterkeys():
-                        try: opt_list[i] = SEPCHAR.join(pkg[i])
-                        except KeyError: pass
-
-                    applications = None
-                    try:
-                        applist = pkg['applications']
-                        applications = SEPCHAR.join(
-                            [app['id'] for app in applist] )
-
-                        # Join all lists of all apps into one megalist.
-                        for i in opt_list.iterkeys():
-                            opt_list[i] = SEPCHAR.join([ SEPCHAR.join(app[i])
-                                for app in applist ] )
-
-                    except KeyError: pass
-
-                    c.execute("""Insert Or Replace Into "%s" Values
-                        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
-                        ( pkg['id'],
-                        '.'.join( (
-                            pkg['version']['major'],
-                            pkg['version']['minor'],
-                            pkg['version']['release'],
-                            pkg['version']['build'], ) ),
-                        author['name'],
-                        author['website'],
-                        author['email'],
-                        title,
-                        description,
-                        opt_field['icon'],
-                        pkg['uri'],
-                        pkg['md5'],
-                        opt_field['vendor'],
-                        opt_field['rating'],
-                        applications,
-                        opt_list['previewpics'],
-                        opt_list['licenses'],
-                        opt_list['source'],
-                        opt_list['categories'],
-                        None) )
-                    #TODO: make sure no required fields are missing. covered by try and Not Null?
-                    #TODO: Don't erase icon_cache if icon hasn't changed.
-
-                #Now repo is all updated, let the index know its etag/last-modified.
-                headers = r.info()
-                c.execute('Update "%s" Set name=?, etag=?,last_modified=? Where url=?'
-                    %REPO_INDEX_TABLE, (
-                        repo['repository']['name'],
-                        headers.getheader('ETag'),
-                        headers.getheader('Last-Modified'),
-                        table) )
-
-            except KeyError:
-                raise RepoError('A required field is missing from this repository')
-                #TODO: Make it indicate which field that is?
-
-    finally:
-        for i in repos: i.close()
-        db.commit()
-        c.close()
+            try:
+                update_remote_url(r, c)
+            except Exception as e:
+                warnings.warn("Could not process %s: %s" % (r.url, repr(e)))
+            r.close() # Shouldn't need to, but might as well.
 
 
 
-def update_local_file(path):
+def update_local_file(path, db_conn):
     """Adds an entry to the local database based on the PND found at "path"."""
     apps = libpnd.pxml_get_by_path(path)
     if not apps:
         raise ValueError("%s doesn't seem to be a real PND file." % path)
 
     m = md5()
-    with open(path, 'rb') as p:
-        for chunk in iter(lambda: p.read(128*m.block_size), ''):
-            m.update(chunk)
+    #with open(path, 'rb') as p:
+    #    for chunk in iter(lambda: p.read(128*m.block_size), ''):
+    #        m.update(chunk)
 
     # Extract all the useful information from the PND and add it to the table.
     # NOTE: libpnd doesn't yet have functions to look at the package element of
@@ -267,7 +271,7 @@ def update_local_file(path):
         # Search for package element.
         pkg = pxml.find(xml_child('package'))
     except: # etree.ParseError isn't in Python 2.6 :(
-        warnings.warn("Invalid PXML in %s; will attempt processing" % path)
+        #warnings.warn("Invalid PXML in %s; will attempt processing" % path)
         pxml = pkg = None
 
     if pkg is not None:
@@ -315,10 +319,10 @@ def update_local_file(path):
         pkg = apps[0]
         pkgid = libpnd.pxml_get_unique_id(pkg)
         version = '.'.join( (
-            libpnd.pxml_get_version_major(pkg),
-            libpnd.pxml_get_version_minor(pkg),
-            libpnd.pxml_get_version_release(pkg),
-            libpnd.pxml_get_version_build(pkg), ) )
+            str(libpnd.pxml_get_version_major(pkg)),
+            str(libpnd.pxml_get_version_minor(pkg)),
+            str(libpnd.pxml_get_version_release(pkg)),
+            str(libpnd.pxml_get_version_build(pkg)), ) )
         author_name = libpnd.pxml_get_author_name(pkg)
         author_website = libpnd.pxml_get_author_website(pkg)
         author_email = None # NOTE: libpnd has no pxml_get_author_email?
@@ -371,36 +375,28 @@ def update_local_file(path):
         categories = SEPCHAR.join(categories)
     else: categories = None
 
-    # TODO: Opening a new connection for each file getting added is probably
-    # inefficient.  Might be better if a connection or cursor object could be
-    # passed in, but a new one could be generated if needed?
-    with sqlite3.connect(options.get_database()) as db:
-
-        # Output from libpnd gives encoded bytestrings, not Unicode strings.
-        db.text_factory = str
-
-        c = db.cursor()
-        c.execute("""Insert Or Replace Into "%s" Values
-            (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
-            ( pkgid,
-            version,
-            author_name,
-            author_website,
-            author_email,
-            title,
-            description,
-            icon,
-            path,
-            m.hexdigest(),
-            None, # I see no use for "vendor" on installed apps.
-            None, # Nor "rating".
-            applications,
-            previewpics,
-            None, # TODO: Licenses once libpnd can pull them.
-            None, # TODO: Sources once libpnd can pull them.
-            categories,
-            None) ) # TODO: Get icon buffer with pnd_desktop's pnd_emit_icon_to_buffer
-        db.commit()
+    # Output from libpnd gives encoded bytestrings, not Unicode strings.
+    db_conn.text_factory = str
+    db_conn.execute("""Insert Or Replace Into "%s" Values
+        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
+        ( pkgid,
+        version,
+        author_name,
+        author_website,
+        author_email,
+        title,
+        description,
+        icon,
+        path,
+        m.hexdigest(),
+        None, # I see no use for "vendor" on installed apps.
+        None, # Nor "rating".
+        applications,
+        previewpics,
+        None, # TODO: Licenses once libpnd can pull them.
+        None, # TODO: Sources once libpnd can pull them.
+        categories,
+        None) ) # TODO: Get icon buffer with pnd_desktop's pnd_emit_icon_to_buffer
 
     # Clean up the pxml handle.
     for i in xrange(n_apps):
@@ -414,39 +410,38 @@ def update_local():
     # Open database connection.
     with sqlite3.connect(options.get_database()) as db:
         db.row_factory = sqlite3.Row
-        c = db.cursor()
         # Create table from scratch to hold list of all installed PNDs.
         # Drops it first so no old entries get left behind.
         # TODO: Yes, there are probably more efficient ways than dropping
         # the whole thing, whatever, I'll get to it.
-        c.execute('Drop Table If Exists "%s"' % LOCAL_TABLE)
-        create_table(c, LOCAL_TABLE)
-        db.commit()
+        db.execute('Drop Table If Exists "%s"' % LOCAL_TABLE)
+        create_table(db, LOCAL_TABLE)
 
-    # Find PND files on searchpath.
-    searchpath = ':'.join(options.get_searchpath())
-    search = libpnd.disco_search(searchpath, None)
-    if not search:
-        raise ValueError("Your install of libpnd isn't behaving right!  pnd_disco_search has returned null.")
+        # Find PND files on searchpath.
+        searchpath = ':'.join(options.get_searchpath())
+        search = libpnd.disco_search(searchpath, None)
+        if not search:
+            raise ValueError("Your install of libpnd isn't behaving right!  pnd_disco_search has returned null.")
 
-    # If at least one PND is found, add each to the database.
-    # Note that disco_search returns the path to each *application*.  PNDs with
-    # multiple apps will therefore be returned multiple times.  Process any
-    # such PNDs only once.
-    n = libpnd.box_get_size(search)
-    done = set()
-    if n > 0:
-        node = libpnd.box_get_head(search)
-        path = libpnd.box_get_key(node)
-        try: update_local_file(path)
-        except Exception as e:
-            warnings.warn("Could not process %s: %s" % (path, repr(e)))
-        done.add(path)
-        for i in xrange(n-1):
-            node = libpnd.box_get_next(node)
+        # If at least one PND is found, add each to the database.
+        # Note that disco_search returns the path to each *application*.  PNDs with
+        # multiple apps will therefore be returned multiple times.  Process any
+        # such PNDs only once.
+        n = libpnd.box_get_size(search)
+        done = set()
+        if n > 0:
+            node = libpnd.box_get_head(search)
             path = libpnd.box_get_key(node)
-            if path not in done:
-                try: update_local_file(libpnd.box_get_key(node))
-                except Exception as e:
-                    warnings.warn("Could not process %s: %s" % (path, repr(e)))
-                done.add(path)
+            try: update_local_file(path, db)
+            except Exception as e:
+                warnings.warn("Could not process %s: %s" % (path, repr(e)))
+            done.add(path)
+            for i in xrange(n-1):
+                node = libpnd.box_get_next(node)
+                path = libpnd.box_get_key(node)
+                if path not in done:
+                    try: update_local_file(path, db)
+                    except Exception as e:
+                        warnings.warn("Could not process %s: %s" % (path, repr(e)))
+                    done.add(path)
+        db.commit()
