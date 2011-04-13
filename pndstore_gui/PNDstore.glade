@@ -61,8 +61,8 @@
                   </object>
                 </child>
                 <child>
-                  <object class="GtkTreeViewColumn" id="column_version_latest">
-                    <property name="title">Latest</property>
+                  <object class="GtkTreeViewColumn" id="column_version_repo">
+                    <property name="title">Repository</property>
                     <child>
                       <object class="GtkCellRendererText" id="cellrendererverlatest"/>
                       <attributes>

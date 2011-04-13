@@ -27,7 +27,14 @@ class PNDstore(object):
 
         for p in packages.get_all():
             latest = p.get_latest()
+            remote = p.get_latest_remote()
             info = latest.db_entry
+
+            if remote.exists:
+                v_remote = remote.db_entry['version']
+            else:
+                v_remote = None
+
             if p.local.exists:
                 v_local = p.local.db_entry['version']
                 if p.local is not latest:
@@ -42,7 +49,7 @@ class PNDstore(object):
                 info['title'],
                 info['description'],
                 v_local,
-                info['version'],
+                v_remote,
                 icon, ) )
 
 
