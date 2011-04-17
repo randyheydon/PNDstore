@@ -19,5 +19,10 @@ if opts.working_dir is not None:
 from pndstore_gui import PNDstore
 import gtk
 
+gtk.gdk.threads_init()
+
 p = PNDstore()
+
+gtk.threads_enter()
 gtk.main()
+gtk.threads_leave()
