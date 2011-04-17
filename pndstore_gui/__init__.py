@@ -1,6 +1,6 @@
 """This package provides the graphical user interface to PNDstore."""
 
-import gtk, os.path, warnings
+import gtk, os.path, warnings, threading, time
 from pndstore import database_update, packages
 
 class PNDstore(object):
@@ -16,9 +16,17 @@ class PNDstore(object):
         self.window.show()
         self.window.maximize()
 
+        self.statusbar = builder.get_object('statusbar')
+
         # Load up the treemodel with package info.
         self.view = builder.get_object('treeview')
         self.update_treeview()
+
+        # Only one thread can perform operations on the database.
+        self.op_thread = threading.Thread()
+        self.op_thread.start()
+
+        self.cid = self.statusbar.get_context_id('status')
 
 
     def update_treeview(self):
@@ -53,21 +61,6 @@ class PNDstore(object):
                 icon, ) )
 
 
-    def display_warnings(self, func, *args, **kwargs):
-        """Calls func with *args and **kwargs, then displays a dialog with any
-        warnings detected."""
-        with warnings.catch_warnings(record=True) as w:
-            warnings.filterwarnings('always')
-            func(*args, **kwargs)
-            if len(w) > 0:
-                m = "The following errors were detected in %s:\n%s" % (
-                    func.__name__, '\n'.join( [str(i.message) for i in w]) )
-                dialog = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
-                    parent=self.window, buttons=gtk.BUTTONS_OK, message_format=m)
-                dialog.run()
-                dialog.destroy()
-
-
     def get_selected(self):
         treemodel, treeiter = self.view.get_selection().get_selected()
         return packages.Package(treemodel.get_value(treeiter, 0))
@@ -87,9 +80,23 @@ class PNDstore(object):
                     message_format="Do you want to upgrade %s?\nVersion %s -> %s"
                         % ( pkg.local.db_entry['title'], pkg.local.version,
                         pkg.get_latest().version ) )
+
                 if d.run() == gtk.RESPONSE_YES:
-                    pkg.upgrade()
-                    self.update_treeview()
+                    self.op_thread.join()
+
+                    class ThreadUpgrade(threading.Thread):
+                        def run(thread):
+
+                            self.statusbar.push(self.cid, 'Upgrading %s...' %
+                                pkg.local.db_entry['title'])
+                            pkg.upgrade()
+                            self.statusbar.pop(self.cid)
+
+                            self.update_treeview()
+
+                    self.op_thread = ThreadUpgrade()
+                    self.op_thread.start()
+
                 d.destroy()
         else:
             # Pop up install location chooser.
@@ -111,19 +118,35 @@ class PNDstore(object):
             words.show()
 
             if d.run() == gtk.RESPONSE_ACCEPT:
-                pkg.install(box.get_active_text())
-                self.update_treeview()
+                self.op_thread.join()
+
+                class ThreadInstall(threading.Thread):
+                    def run(thread):
+
+                        self.statusbar.push(self.cid, 'Installing %s...' %
+                            pkg.get_latest().db_entry['title'])
+                        pkg.install(box.get_active_text())
+                        self.statusbar.pop(self.cid)
+
+                        self.update_treeview()
+
+                self.op_thread = ThreadInstall()
+                self.op_thread.start()
+
             d.destroy()
 
 
     def remove(self, pkg):
         "Wrapper around Package.remove."
+
         if pkg.local.exists:
             d = gtk.MessageDialog( parent=self.window, flags=gtk.DIALOG_MODAL,
                 type=gtk.MESSAGE_QUESTION, buttons=gtk.BUTTONS_YES_NO,
                 message_format="Are you sure you want to remove %s?\nAppdata will not be removed."
                     % pkg.local.db_entry['title'] )
             if d.run() == gtk.RESPONSE_YES:
+                # Make sure op_thread is finished before acting.
+                self.op_thread.join()
                 pkg.remove()
                 self.update_treeview()
             d.destroy()
@@ -140,11 +163,56 @@ class PNDstore(object):
                 "The following packages have updates available:\n%s\n\nUpdate all?\nThis will take a while after clicking Yes.  Please be patient."
                 % '\n'.join(['%s %s -> %s' % (p.local.db_entry['title'],
                     p.local.version, p.get_latest().version) for p in pkgs]) )
+
         if d.run() == gtk.RESPONSE_YES:
-            for p in pkgs:
-                p.upgrade()
-            self.update_treeview()
+            self.op_thread.join()
+
+            class ThreadUpgrades(threading.Thread):
+                def run(thread):
+
+                    for p in pkgs:
+                        self.statusbar.push(self.cid, 'Upgrading %s...' %
+                            p.local.db_entry['title'])
+                        p.upgrade()
+                        self.statusbar.pop(self.cid)
+
+                    self.update_treeview()
+
+            self.op_thread = ThreadUpgrades()
+            self.op_thread.start()
+
         d.destroy()
+
+
+    def update_all(self):
+        # Make sure this isn't running already.
+        if self.op_thread.is_alive(): return
+
+        class ThreadUpdates(threading.Thread):
+            def run(thread):
+
+                with warnings.catch_warnings(record=True) as w:
+                    warnings.filterwarnings('always')
+
+                    self.statusbar.push(self.cid,
+                        'Updating remote package list...')
+                    database_update.update_remote()
+                    self.statusbar.pop(self.cid)
+
+                    self.statusbar.push(self.cid,
+                        'Updating local package list...')
+                    database_update.update_local()
+                    self.statusbar.pop(self.cid)
+
+                self.update_treeview()
+
+                for msg in w:
+                    self.statusbar.push(self.cid, str(msg.message))
+                    time.sleep(5)
+                    self.statusbar.pop(self.cid)
+
+        self.op_thread = ThreadUpdates()
+        self.op_thread.start()
 
 
 
@@ -177,6 +245,4 @@ class PNDstore(object):
 
 
     def on_button_update(self, button, *data):
-        self.display_warnings(database_update.update_local)
-        self.display_warnings(database_update.update_remote)
-        self.update_treeview()
+        self.update_all()
