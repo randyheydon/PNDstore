@@ -264,20 +264,25 @@ def update_local_file(path, db_conn):
         raise PNDError('PND file has no starting PXML tag.')
     if not libpnd.pnd_accrue_pxml(f, pxml_buffer, libpnd.PXML_MAXLEN):
         raise PNDError('PND file has no ending PXML tag.')
+
     try:
         # Strip extra trailing characters from the icon.  Remove them!
         end_tag = pxml_buffer.value.rindex('>')
         pxml = etree.XML(pxml_buffer.value[:end_tag+1])
         # Search for package element.
         pkg = pxml.find(xml_child('package'))
-    except: # etree.ParseError isn't in Python 2.6 :(
-        #warnings.warn("Invalid PXML in %s; will attempt processing" % path)
-        pxml = pkg = None
+    except: pass
 
-    if pkg is not None:
-        # Parse package element if it exists.
+    # May need to fall back on first app element, assuming it's representative
+    # of the package as a whole.
+    app = apps[0]
+
+    try:
         pkgid = pkg.attrib['id']
+    except:
+        pkgid = libpnd.pxml_get_unique_id(app)
 
+    try:
         v = pkg.find(xml_child('version'))
         # TODO: Add support for 'type' attribute.
         # NOTE: Using attrib instead of get will be fragile on non standards-
@@ -287,16 +292,26 @@ def update_local_file(path, db_conn):
             v.attrib['minor'],
             v.attrib['release'],
             v.attrib['build'], ) )
+    except:
+        version = '.'.join( (
+            str(libpnd.pxml_get_version_major(app)),
+            str(libpnd.pxml_get_version_minor(app)),
+            str(libpnd.pxml_get_version_release(app)),
+            str(libpnd.pxml_get_version_build(app)), ) )
 
+    try:
         author = pkg.find(xml_child('author'))
         author_name = author.get('name')
         author_website = author.get('website')
         author_email = author.get('email')
+    except:
+        author_name = libpnd.pxml_get_author_name(app)
+        author_website = libpnd.pxml_get_author_website(app)
+        author_email = None # NOTE: libpnd has no pxml_get_author_email?
 
+    try:
         # Get title and description in the most preferred language available.
-        # All PNDs *should* have an en_US title, but this could result in an
-        # error if they don't.  Descriptions are optional.
-        titles = {}; descs = {}
+        titles = {}
         for t in pkg.find(xml_child('titles')):
             titles[t.attrib['lang']] = t.text
         for l in options.get_locale():
@@ -304,40 +319,27 @@ def update_local_file(path, db_conn):
                 title = titles[l]
                 break
             except KeyError: pass
+        title # Trigger NameError if it's not yet set.
+    except:
+        title = libpnd.pxml_get_app_name(app, options.get_locale()[0])
 
-        try:
-            for d in pkg.find(xml_child('descriptions')):
-                descs[d.attrib['lang']] = d.text
-            for l in options.get_locale():
-                try:
-                    description = descs[l]
-                    break
-                except KeyError: pass
-        except TypeError:
-            description = None
+    try:
+        descs = {}
+        for d in pkg.find(xml_child('descriptions')):
+            descs[d.attrib['lang']] = d.text
+        for l in options.get_locale():
+            try:
+                description = descs[l]
+                break
+            except KeyError: pass
+        description # Trigger NameError if it's not yet set.
+    except:
+        description = libpnd.pxml_get_description(app, options.get_locale()[0])
 
-        i = pkg.find(xml_child('icon'))
-        if i is not None:
-            icon = i.get('src')
-        else: icon = None
-
-    else:
-        # package element not found.
-        # Assume first app element is representative of the package as a whole.
-        pkg = apps[0]
-        pkgid = libpnd.pxml_get_unique_id(pkg)
-        version = '.'.join( (
-            str(libpnd.pxml_get_version_major(pkg)),
-            str(libpnd.pxml_get_version_minor(pkg)),
-            str(libpnd.pxml_get_version_release(pkg)),
-            str(libpnd.pxml_get_version_build(pkg)), ) )
-        author_name = libpnd.pxml_get_author_name(pkg)
-        author_website = libpnd.pxml_get_author_website(pkg)
-        author_email = None # NOTE: libpnd has no pxml_get_author_email?
-        # TODO: I'm not sure how libpnd handles locales exactly...
-        title = libpnd.pxml_get_app_name(pkg, options.get_locale()[0])
-        description = libpnd.pxml_get_description(pkg, options.get_locale()[0])
-        icon = libpnd.pxml_get_icon(pkg)
+    try:
+        icon = pkg.find(xml_child('icon')).get('src')
+    except:
+        icon = libpnd.pxml_get_icon(app)
 
     # Find out how many apps are in the PXML, so we can iterate over them.
     n_apps = 0
