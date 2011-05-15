@@ -158,23 +158,32 @@ class PNDstore(object):
 
 
     def upgrade_all(self, pkgs):
-        d = gtk.MessageDialog( parent=self.window, flags=gtk.DIALOG_MODAL,
-            buttons=gtk.BUTTONS_YES_NO, message_format=
-                "The following packages have updates available:\n%s\n\nUpdate all?\nThis will take a while after clicking Yes.  Please be patient."
-                % '\n'.join(['%s %s -> %s' % (p.local.db_entry['title'],
-                    p.local.version, p.get_latest().version) for p in pkgs]) )
+        d = gtk.Dialog(title="Select packages to upgrade.",
+            parent=self.window, flags=gtk.DIALOG_MODAL,
+            buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
+                gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
 
-        if d.run() == gtk.RESPONSE_YES:
+        checks = {}
+        for p in pkgs:
+            b = gtk.CheckButton(u'%s %s \u2192 %s' % (p.local.db_entry['title'],
+                p.local.version, p.get_latest().version))
+            b.set_active(True)
+            checks[p] = b
+            d.vbox.pack_start(b)
+            b.show()
+
+        if d.run() == gtk.RESPONSE_ACCEPT:
             self.op_thread.join()
 
             class ThreadUpgrades(threading.Thread):
                 def run(thread):
 
                     for p in pkgs:
-                        self.statusbar.push(self.cid, 'Upgrading %s...' %
-                            p.local.db_entry['title'])
-                        p.upgrade()
-                        self.statusbar.pop(self.cid)
+                        if checks[p].get_active():
+                            self.statusbar.push(self.cid, 'Upgrading %s...' %
+                                p.local.db_entry['title'])
+                            p.upgrade()
+                            self.statusbar.pop(self.cid)
 
                     self.update_treeview()
 
