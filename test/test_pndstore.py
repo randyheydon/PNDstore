@@ -444,9 +444,10 @@ class TestLibpnd(unittest.TestCase):
     def testDiscovery(self):
         search = libpnd.disco_search(testfiles, None)
         # Note this gives the number of applications, not the number of
-        # packages found.  This test has 4 packages, one of which holds 3 apps.
+        # packages found.  This test has several packages, some of which hold
+        # multiple apps.
         n = libpnd.box_get_size(search)
-        self.assertEqual(n, 13)
+        self.assertEqual(n, 14)
 
         node = libpnd.box_get_head(search)
         pnds = [libpnd.box_get_key(node)]
@@ -456,7 +457,8 @@ class TestLibpnd(unittest.TestCase):
         self.assertSetEqual(set(map(os.path.basename, pnds)), {'BubbMan2.pnd',
             'Sparks-0.4.2.pnd', 'The Lonely Tower-2.2.pnd', 'fulltest.pnd',
             'Chromium-dev.pxml.pnd', 'Hexen2.pxml.pnd', 'scummvm-op.pxml.pnd',
-            'java.pxml.pnd', 'pcsx.pxml.pnd'})
+            'java.pxml.pnd','pcsx.pxml.pnd','Chromium-Dev.evildragon.pxml.pnd',
+            })
 
 
     def testParsing(self):
@@ -599,8 +601,8 @@ class TestPackages(unittest.TestCase):
         for p in ps:
             self.assertIsInstance(p, packages.Package)
         # TODO: Some better tests for this function.
-        # 28 in repo.json, 9 local, 2 in both.
-        self.assertEqual(len(ps), 28 + 9 - 2)
+        # 28 in repo.json, 10 local, 2 in both.
+        self.assertEqual(len(ps), 28 + 10 - 2)
 
 
     def testGetAllLocal(self):
@@ -608,7 +610,7 @@ class TestPackages(unittest.TestCase):
         for p in ps:
             self.assertIsInstance(p, packages.Package)
         # TODO: Some better tests for this function.
-        self.assertEqual(len(ps), 9)
+        self.assertEqual(len(ps), 10)
 
 
     def testGetUpdates(self):

@@ -1,0 +1,44 @@
+
+<?xml version="1.0" encoding="UTF-8"?>
+<PXML xmlns="http://openpandora.org/namespaces/PXML" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="PXML_schema.xsd">
+<package id="chromium-dev.evildragon">
+ <title lang="en_US">Chromium-Dev</title>
+  <description lang="en_US">Chromium is an open-source browser project that aims to build a safer, faster, and more stable way for all users to experience the web. This site contains design documents, architecture overviews, testing information, and more to help you learn to build and work with the Chromium source code.”.</description>
+  <icon src="product_logo_48.png"/>
+  <previewpics>
+   <pic src="./preview.jpg"/>
+  </previewpics>
+  <author name="Chromium Team" website="http://sites.google.com/a/chromium.org/dev/"/><!--Optional email and website, name required-->
+  <version major="13" minor="0" release="750" build="1"/><!--This programs version-->
+  <osversion major="1" minor="0" release="0" build="0"/><!--The minimum OS version required-->
+ 
+</package>
+
+<application id="chromium-dev.evildragon">
+<title lang="en_US">Chromium-Dev</title>
+ 
+ 
+  <exec command="chrome.sh"/>
+ 
+  <description lang="en_US">Chromium is an open-source browser project that aims to build a safer, faster, and more stable way for all users to experience the web. This site contains design documents, architecture overviews, testing information, and more to help you learn to build and work with the Chromium source code.”.</description>
+  
+  
+  <icon src="product_logo_48.png"/>
+ 
+  <previewpics>
+   <pic src="./preview.jpg"/>
+  </previewpics>
+ 
+  <author name="Chromium Team" website="http://sites.google.com/a/chromium.org/dev/"/><!--Optional email and website, name required-->
+ 
+  <version major="13" minor="0" release="750" build="1"/><!--This programs version-->
+  <osversion major="1" minor="0" release="0" build="0"/><!--The minimum OS version required-->
+ 
+  <categories>
+    <category name="Network"><!--category like "Games", "Graphics", "Internet" etc-->
+    <subcategory name="WebBrowser"/><!--subcategory, like "Board Games", "Strategy", "First Person Shooters"-->
+    </category>
+  </categories>
+
+ </application>
+</PXML>
