@@ -77,7 +77,7 @@ class PNDstore(object):
             else:
                 d = gtk.MessageDialog(parent=self.window, flags=gtk.DIALOG_MODAL,
                     type=gtk.MESSAGE_QUESTION, buttons=gtk.BUTTONS_YES_NO,
-                    message_format="Do you want to upgrade %s?\nVersion %s -> %s"
+                    message_format=u"Do you want to upgrade %s?\nVersion %s \u2192 %s"
                         % ( pkg.local.db_entry['title'], pkg.local.version,
                         pkg.get_latest().version ) )
 
