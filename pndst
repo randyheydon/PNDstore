@@ -26,9 +26,15 @@ parser.add_option('--update-local',
 parser.add_option('--install', '-i',
     dest='install', default=False,
     metavar='DIRECTORY', help='install PND by package ID to DIRECTORY')
-parser.add_option('--upgrade', '-u',
+parser.add_option('--list-upgrades', '',
+    action='store_true', dest='list_upgrades', default=False,
+    help='list packages with newer versions available')
+parser.add_option('--upgrade', '',
     action='store_true', dest='upgrade', default=False,
-    help='upgrade local applications with latest available')
+    help='upgrade individual locally-installed package')
+parser.add_option('--upgrade-all', '-u',
+    action='store_true', dest='upgrade_all', default=False,
+    help='upgrade local packages with latest available')
 
 parser.add_option('--remove', '-R',
     action='store_true', dest='remove', default=False,
@@ -84,7 +90,16 @@ if opts.remove:
         packages.Package(i).remove()
         print "Done."
 
+if opts.list_upgrades:
+    upgrades = packages.get_updates()
+    print '\n'.join( (pkg.id for pkg in upgrades) )
 if opts.upgrade:
+    for i in args:
+        print "Upgrading %s..." % i
+        packages.Package(i).upgrade()
+        print "Done."
+
+if opts.upgrade_all:
     # Comes after removal so unwanted packages are not upgraded just to be removed.
     upgrades = packages.get_updates()
     if upgrades:
