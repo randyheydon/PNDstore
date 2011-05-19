@@ -122,12 +122,15 @@ def update_remote_url(url, cursor):
     #TODO: Is there any way to gracefully handle a malformed feed?
     repo = json.load(url)
 
-    #Check it's the right version.
-    v = repo["repository"]["version"]
-    if v not in REPO_VERSION:
-        raise RepoError(
-            'Incorrect repository version (required one of %s, got %f)'
-            % (REPO_VERSION, v))
+    # Check it's the right version.
+    # Better, perhaps, for it to just try its best, then give an old-fashioned
+    # failure.  This prevents any problems from milkshake's repo updating its
+    # version before everyone has an updated PNDstore.
+    #v = repo["repository"]["version"]
+    #if v not in REPO_VERSION:
+    #    raise RepoError(
+    #        'Incorrect repository version (required one of %s, got %f)'
+    #        % (REPO_VERSION, v))
 
     #Create table from scratch for this repo.
     #Drops it first so no old entries get left behind.
