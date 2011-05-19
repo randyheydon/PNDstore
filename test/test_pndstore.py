@@ -271,12 +271,12 @@ class TestDatabaseUpdate(unittest.TestCase):
             with open(repo0, 'a') as r: r.write(',')
             self.assertRaises(ValueError, database_update.update_remote_url,
                 database_update.open_repos()[0], c)
-            #Test for incorrect version.
-            with open(repo0, 'w') as r:
-                r.write(self.repotxt % (os.path.basename(repo0), 99.7))
-            self.assertRaises(database_update.RepoError,
-                database_update.update_remote_url,
-                database_update.open_repos()[0], c)
+            # Test for incorrect version.
+            #with open(repo0, 'w') as r:
+            #    r.write(self.repotxt % (os.path.basename(repo0), 99.7))
+            #self.assertRaises(database_update.RepoError,
+            #    database_update.update_remote_url,
+            #    database_update.open_repos()[0], c)
 
         database_update.update_remote()
         # Bad repo (first) must be empty.
