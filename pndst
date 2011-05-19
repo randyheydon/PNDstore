@@ -37,6 +37,10 @@ parser.add_option('--remove-appdata', '-N',
     action='store_true', dest='remove_appdata', default=False,
     help='remove appdata directories by package ID')
 
+parser.add_option('--noconfirm', '',
+    action='store_false', dest='confirm', default=True,
+    help='perform actions without requesting confirmation')
+
 opts, args = parser.parse_args()
 
 # Check for bad option combinations.
@@ -87,10 +91,13 @@ if opts.upgrade:
         print "Packages to be upgraded:"
         for pkg in upgrades:
             print pkg.id, str(pkg.local.version), '->', str(pkg.get_latest().version)
-        cont = raw_input("Continue upgrade? [Y/n]")
+
+        if opts.confirm: cont = raw_input("Continue upgrade? [Y/n]")
+        else: cont = 'Y'
         if cont in ('', 'Y', 'y'):
             for pkg in upgrades:
                 print "Upgrading %s..." % pkg.id
                 pkg.upgrade()
                 print "Done."
+
     else: print "No upgrades available."
