@@ -53,8 +53,9 @@ class PNDstore(object):
                 v_local = None
                 icon = None
 
-            model.append( ( p.id,
+            model.append( (
                 info['title'],
+                p.id,
                 info['description'],
                 v_local,
                 v_remote,
@@ -63,7 +64,7 @@ class PNDstore(object):
 
     def get_selected(self):
         treemodel, treeiter = self.view.get_selection().get_selected()
-        return packages.Package(treemodel.get_value(treeiter, 0))
+        return packages.Package(treemodel.get_value(treeiter, 1))
 
 
     def install(self, pkg):
