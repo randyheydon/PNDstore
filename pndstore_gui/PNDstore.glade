@@ -1,7 +1,6 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk+" version="2.16"/>
-  <!-- interface-naming-policy project-wide -->
   <object class="GtkListStore" id="packagelist">
     <columns>
       <!-- column-name pkgid -->
@@ -19,25 +18,27 @@
     </columns>
   </object>
   <object class="GtkWindow" id="window">
+    <property name="can_focus">False</property>
     <property name="title" translatable="yes">PNDstore</property>
-    <signal name="destroy" handler="on_window_destroy"/>
+    <signal name="destroy" handler="on_window_destroy" swapped="no"/>
     <child>
       <object class="GtkVBox" id="vbox1">
         <property name="visible">True</property>
-        <property name="orientation">vertical</property>
+        <property name="can_focus">False</property>
         <child>
           <object class="GtkScrolledWindow" id="scrolledwindow1">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
-            <property name="hscrollbar_policy">automatic</property>
-            <property name="vscrollbar_policy">automatic</property>
             <child>
               <object class="GtkTreeView" id="treeview">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="model">packagelist</property>
                 <property name="rules_hint">True</property>
-                <signal name="row_activated" handler="on_row_activated"/>
+                <signal name="row-activated" handler="on_row_activated" swapped="no"/>
+                <child internal-child="selection">
+                  <object class="GtkTreeSelection" id="treeview-selection1"/>
+                </child>
                 <child>
                   <object class="GtkTreeViewColumn" id="column_img">
                     <child>
@@ -55,7 +56,7 @@
                     <child>
                       <object class="GtkCellRendererText" id="cellrenderertitle"/>
                       <attributes>
-                        <attribute name="text">1</attribute>
+                        <attribute name="text">0</attribute>
                       </attributes>
                     </child>
                   </object>
@@ -86,21 +87,27 @@
             </child>
           </object>
           <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
             <property name="position">0</property>
           </packing>
         </child>
         <child>
           <object class="GtkHBox" id="hbox1">
             <property name="visible">True</property>
+            <property name="can_focus">False</property>
             <child>
               <object class="GtkButton" id="button_install">
                 <property name="label" translatable="yes">Install</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <signal name="clicked" handler="on_button_install"/>
+                <property name="use_action_appearance">False</property>
+                <signal name="clicked" handler="on_button_install" swapped="no"/>
               </object>
               <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
                 <property name="position">0</property>
               </packing>
             </child>
@@ -110,9 +117,12 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <signal name="clicked" handler="on_button_remove"/>
+                <property name="use_action_appearance">False</property>
+                <signal name="clicked" handler="on_button_remove" swapped="no"/>
               </object>
               <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
                 <property name="position">1</property>
               </packing>
             </child>
@@ -122,9 +132,12 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <signal name="clicked" handler="on_button_upgrade"/>
+                <property name="use_action_appearance">False</property>
+                <signal name="clicked" handler="on_button_upgrade" swapped="no"/>
               </object>
               <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
                 <property name="position">2</property>
               </packing>
             </child>
@@ -134,25 +147,31 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <signal name="clicked" handler="on_button_update"/>
+                <property name="use_action_appearance">False</property>
+                <signal name="clicked" handler="on_button_update" swapped="no"/>
               </object>
               <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
                 <property name="position">3</property>
               </packing>
             </child>
           </object>
           <packing>
             <property name="expand">False</property>
+            <property name="fill">True</property>
             <property name="position">1</property>
           </packing>
         </child>
         <child>
           <object class="GtkStatusbar" id="statusbar">
             <property name="visible">True</property>
+            <property name="can_focus">False</property>
             <property name="spacing">2</property>
           </object>
           <packing>
             <property name="expand">False</property>
+            <property name="fill">True</property>
             <property name="position">2</property>
           </packing>
         </child>

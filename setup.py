@@ -3,7 +3,7 @@ from distutils.core import setup
 
 setup(
     name = 'PNDstore',
-    version = '0.3',
+    version = '0.3.1',
     description = 'Install and update PNDs',
     long_description = open('README.txt').read(),
     author = 'Randy Heydon',
@@ -11,6 +11,6 @@ setup(
     url = 'https://github.com/Tempel/PNDstore',
     packages = ['pndstore', 'pndstore_gui'],
     package_data = {'pndstore': ['cfg/*'], 'pndstore_gui': ['PNDstore.glade']},
-    scripts = ['wrapper.sh', 'PNDstore', 'pndst'],
+    scripts = ['wrapper-PNDstore.sh', 'wrapper-pndst.sh', 'PNDstore', 'pndst'],
     license = 'LGPL',
 )

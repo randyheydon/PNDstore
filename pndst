@@ -26,9 +26,15 @@ parser.add_option('--update-local',
 parser.add_option('--install', '-i',
     dest='install', default=False,
     metavar='DIRECTORY', help='install PND by package ID to DIRECTORY')
-parser.add_option('--upgrade', '-u',
+parser.add_option('--list-upgrades', '',
+    action='store_true', dest='list_upgrades', default=False,
+    help='list packages with newer versions available')
+parser.add_option('--upgrade', '',
     action='store_true', dest='upgrade', default=False,
-    help='upgrade local applications with latest available')
+    help='upgrade individual locally-installed package')
+parser.add_option('--upgrade-all', '-u',
+    action='store_true', dest='upgrade_all', default=False,
+    help='upgrade local packages with latest available')
 
 parser.add_option('--remove', '-R',
     action='store_true', dest='remove', default=False,
@@ -36,6 +42,10 @@ parser.add_option('--remove', '-R',
 parser.add_option('--remove-appdata', '-N',
     action='store_true', dest='remove_appdata', default=False,
     help='remove appdata directories by package ID')
+
+parser.add_option('--noconfirm', '',
+    action='store_false', dest='confirm', default=True,
+    help='perform actions without requesting confirmation')
 
 opts, args = parser.parse_args()
 
@@ -80,17 +90,29 @@ if opts.remove:
         packages.Package(i).remove()
         print "Done."
 
+if opts.list_upgrades:
+    upgrades = packages.get_updates()
+    print '\n'.join( (pkg.id for pkg in upgrades) )
 if opts.upgrade:
+    for i in args:
+        print "Upgrading %s..." % i
+        packages.Package(i).upgrade()
+        print "Done."
+
+if opts.upgrade_all:
     # Comes after removal so unwanted packages are not upgraded just to be removed.
     upgrades = packages.get_updates()
     if upgrades:
         print "Packages to be upgraded:"
         for pkg in upgrades:
             print pkg.id, str(pkg.local.version), '->', str(pkg.get_latest().version)
-        cont = raw_input("Continue upgrade? [Y/n]")
+
+        if opts.confirm: cont = raw_input("Continue upgrade? [Y/n]")
+        else: cont = 'Y'
         if cont in ('', 'Y', 'y'):
             for pkg in upgrades:
                 print "Upgrading %s..." % pkg.id
                 pkg.upgrade()
                 print "Done."
+
     else: print "No upgrades available."
