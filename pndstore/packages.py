@@ -164,17 +164,30 @@ class Package(object):
 
 
     def upgrade(self):
-        installdir = os.path.dirname(self.local.db_entry['uri'])
-        # Remove and hope we don't get a failure that would result in a bad DB.
-        # FIXME: This will fail suckily with no network connection.
-        os.remove(self.local.db_entry['uri'])
-        # Install the latest remote.
-        m = self.get_latest_remote()
-        if not m.exists:
-            raise PackageError('No remote from which to upgrade %s.' % self.id)
-        m.install(installdir)
-        # Local table has changed, so update the local PackageInstance.
-        self.local = PackageInstance(LOCAL_TABLE, self.id)
+        oldname = self.local.db_entry['uri']
+        installdir = os.path.dirname(oldname)
+
+        # Move old version to a temporary filename (that doesn't yet exist).
+        newname = oldname + '.temp'
+        while os.path.exists(newname):
+            newname += '.temp'
+        shutil.move(oldname, newname)
+
+        try:
+            # Install the latest remote.
+            m = self.get_latest_remote()
+            if not m.exists:
+                raise PackageError('No remote from which to upgrade %s.' % self.id)
+            m.install(installdir)
+        except Exception as e:
+            # If upgrade fails, move old version back to where it was.
+            shutil.move(newname, oldname)
+            raise e
+        else:
+            # If upgrade succeeds, get rid of old version.
+            os.remove(newname)
+            # Local table has changed, so update the local PackageInstance.
+            self.local = PackageInstance(LOCAL_TABLE, self.id)
 
 
     def remove(self):
