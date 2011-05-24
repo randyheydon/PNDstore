@@ -27,8 +27,8 @@ parser.add_option('--install', '-i',
     dest='install', default=False,
     metavar='DIRECTORY', help='install PND by package ID to DIRECTORY')
 parser.add_option('--list-upgrades', '',
-    action='store_true', dest='list_upgrades', default=False,
-    help='list packages with newer versions available')
+    dest='list_upgrades', default=None, metavar='FIELDS',
+    help='list packages with newer versions available; FIELDS may be id, version-installed, version-available, apps, or any comma-separated combination thereof')
 parser.add_option('--upgrade', '',
     action='store_true', dest='upgrade', default=False,
     help='upgrade individual locally-installed package')
@@ -92,7 +92,16 @@ if opts.remove:
 
 if opts.list_upgrades:
     upgrades = packages.get_updates()
-    print '\n'.join( (pkg.id for pkg in upgrades) )
+    fields = {
+        'id': lambda p: p.id,
+        'version-installed': lambda p: p.local.db_entry['version'],
+        'version-available': lambda p: p.get_latest_remote().db_entry['version'],
+        'apps': lambda p: p.local.db_entry['applications'],
+    }
+    print '\n'.join( (' '.join(
+        (fields[i](pkg) for i in opts.list_upgrades.split(',')) )
+        for pkg in upgrades) )
+
 if opts.upgrade:
     for i in args:
         print "Upgrading %s..." % i
