@@ -98,12 +98,15 @@ class PackageInstance(object):
 
         # Put file in place.  No need to check if it already exists; if it
         # does, we probably want to replace it anyways.
-        m = md5()
+        # In the process, check its MD5 sum against the one given in the repo.
+        # MD5 is optional in the spec, so only calculate it if it's not given.
+        m_target = self.db_entry['md5']
+        if m_target: m = md5()
         with open(path, 'wb') as dest:
             for chunk in iter(lambda: p.read(128*m.block_size), ''):
-                m.update(chunk)
+                if m_target: m.update(chunk)
                 dest.write(chunk)
-        if not m.hexdigest() == self.db_entry['md5']:
+        if m_target and (m.hexdigest() != m_target):
             raise PackageError("File corrupted.  MD5 sums do not match.")
 
         # Update local database with new info.
