@@ -6,7 +6,7 @@ import unittest, shutil, os.path, locale, sqlite3, ctypes, shutil
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from pndstore import options, database_update, packages, libpnd
+from pndstore_core import options, database_update, packages, libpnd
 
 # Latest repo version; only latest gets tested (for now).
 repo_version = 2.0

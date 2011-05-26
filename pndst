@@ -3,7 +3,7 @@
 
 import os.path
 from optparse import OptionParser, SUPPRESS_HELP
-from pndstore import options
+from pndstore_core import options
 
 parser = OptionParser(usage='Usage: %prog [options] [package id(s)]')
 
@@ -55,7 +55,7 @@ if opts.install and opts.remove:
 if opts.remove_appdata:
     parser.error("Sorry, appdata removal hasn't been implemented yet.")
 
-from pndstore import database_update, packages
+from pndstore_core import database_update, packages
 
 if opts.working_dir is not None:
     options.working_dir = opts.working_dir

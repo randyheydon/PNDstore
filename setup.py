@@ -9,8 +9,8 @@ setup(
     author = 'Randy Heydon',
     author_email = 'randy.heydon@clockworklab.net',
     url = 'https://github.com/Tempel/PNDstore',
-    packages = ['pndstore', 'pndstore_gui'],
-    package_data = {'pndstore': ['cfg/*'], 'pndstore_gui': ['PNDstore.glade']},
+    packages = ['pndstore_core', 'pndstore_gui'],
+    package_data = {'pndstore_core': ['cfg/*'], 'pndstore_gui': ['PNDstore.glade']},
     scripts = ['PNDstore', 'pndst'],
     license = 'LGPL',
 )

@@ -1,7 +1,7 @@
 """This package provides the graphical user interface to PNDstore."""
 
 import gtk, os.path, warnings, threading, time
-from pndstore import database_update, packages
+from pndstore_core import database_update, packages
 
 class PNDstore(object):
     "The main GUI object that does all the work."
