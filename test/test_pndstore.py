@@ -584,6 +584,7 @@ class TestPackages(unittest.TestCase):
 
     def testPackage(self):
         p = packages.Package('bubbman2')
+        self.assertIs(p, packages.Package('bubbman2'))
 
 
     def testPackageGetLatest(self):

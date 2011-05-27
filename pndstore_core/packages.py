@@ -8,6 +8,7 @@ function is useful.
 import options, database_update, sqlite3, os, shutil, urllib2, glob
 from hashlib import md5
 from distutils.version import LooseVersion
+from weakref import WeakValueDictionary
 from database_update import LOCAL_TABLE, REPO_INDEX_TABLE, SEPCHAR
 
 
@@ -119,6 +120,21 @@ class PackageInstance(object):
 class Package(object):
     """Informs on and modifies any package defined by a package id.  Includes
     all locally-installed and remotely-available versions of that package."""
+
+    # This ensures that only one Package object can exist for a given ID (a
+    # variant of the Singleton pattern?).  This lets Package objects be
+    # considered the same even if created independently of each other (such as
+    # through multiple calls to search_local_packages).  Also ensures that one
+    # instance installing or upgrading will not cause another instance to
+    # become out-of-date.
+    _existing = WeakValueDictionary()
+    def __new__(cls, pkgid):
+        try:
+            return cls._existing[pkgid]
+        except KeyError:
+            p = object.__new__(cls, pkgid)
+            cls._existing[pkgid] = p
+            return p
 
     def __init__(self, pkgid):
         self.id = pkgid
