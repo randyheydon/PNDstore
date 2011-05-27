@@ -31,7 +31,10 @@ parser.add_option('--list-upgrades', '',
     help='list packages with newer versions available; FIELDS may be id, version-installed, version-available, apps, or any comma-separated combination thereof')
 parser.add_option('--upgrade', '',
     action='store_true', dest='upgrade', default=False,
-    help='upgrade individual locally-installed package')
+    help='upgrade locally-installed packages with the given package IDs')
+parser.add_option('--upgrade-by-appid', '',
+    action='store_true', dest='upgrade_by_appid', default=False,
+    help='upgrade locally-installed packages containing the given application IDs.')
 parser.add_option('--upgrade-all', '-u',
     action='store_true', dest='upgrade_all', default=False,
     help='upgrade local packages with latest available')
@@ -73,21 +76,21 @@ if opts.update_remote:
     print "Done."
 
 if opts.install:
-    for i in args:
-        print "Installing %s..." % i
-        packages.Package(i).install(opts.install)
+    for p in set(map(packages.Package, args)):
+        print "Installing %s..." % p.id
+        p.install(opts.install)
         print "Done."
 
 if opts.remove_appdata:
     # This must come before remove so the Package objects can be created.
-    for i in args:
-        print "Removing all appdatas of %s..." % i
-        packages.Package(i).remove_appdatas()
+    for p in set(map(packages.Package, args)):
+        print "Removing all appdatas of %s..." % p.id
+        p.remove_appdatas()
         print "Done."
 if opts.remove:
-    for i in args:
-        print "Removing %s..." % i
-        packages.Package(i).remove()
+    for p in set(map(packages.Package, args)):
+        print "Removing %s..." % p.id
+        p.remove()
         print "Done."
 
 if opts.list_upgrades:
@@ -103,9 +106,17 @@ if opts.list_upgrades:
         for pkg in upgrades) )
 
 if opts.upgrade:
+    for p in set(map(packages.Package, args)):
+        print "Upgrading %s..." % p.id
+        p.upgrade()
+        print "Done."
+if opts.upgrade_by_appid:
+    ps = set()
     for i in args:
-        print "Upgrading %s..." % i
-        packages.Package(i).upgrade()
+        ps.update(packages.search_local_packages('applications', i))
+    for p in ps:
+        print "Upgrading %s..." % p.id
+        p.upgrade()
         print "Done."
 
 if opts.upgrade_all:
