@@ -216,6 +216,22 @@ class Package(object):
 
 
 
+def search_local_packages(col, val):
+    """Find all packages containing the given value in the given column.
+    Also handles columns containing lists of data, ensuring that the given
+    value is an entry of that list, not just a substring of an entry."""
+    with sqlite3.connect(options.get_database()) as db:
+        try:
+            c = db.execute( '''Select id From "%(tab)s" Where %(col)s Like ?
+                Or %(col)s Like ? Or %(col)s Like ? Or %(col)s Like ?'''
+                % {'tab':LOCAL_TABLE, 'col':col},
+                (val, val+SEPCHAR+'%', '%'+SEPCHAR+val,
+                '%'+SEPCHAR+val+SEPCHAR+'%') )
+        except sqlite3.OperationalError: return []
+
+    return [ Package(i[0]) for i in c ]
+
+
 def get_all():
     "Returns Package object for every available package, local or remote."
     tables = get_remote_tables()

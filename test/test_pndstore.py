@@ -596,6 +596,27 @@ class TestPackages(unittest.TestCase):
         self.assertEqual(p.get_latest().version, '1.0.4.0')
 
 
+    def testSearchLocalPackages(self):
+        # Gets the package containing a specific application.
+        ps = packages.search_local_packages('applications', 'sample-app2')
+        self.assertSetEqual({p.id for p in ps}, {'sample-package'})
+        # Gets no package even though searching for substring of an app ID.
+        ps = packages.search_local_packages('applications', 'sample')
+        self.assertSetEqual({p.id for p in ps}, set())
+        # Gets package with only one application.
+        ps = packages.search_local_packages('applications', 'pcsx_rearmed.notaz.r8')
+        self.assertSetEqual({p.id for p in ps}, {'package.pcsx_rearmed.notaz.r8'})
+        # Gets packages with a particular word in the description.
+        ps = packages.search_local_packages('description', '%game%')
+        self.assertSetEqual({p.id for p in ps},
+            {'the-lonely-tower', 'scummvm.djwillis.0001'})
+        # Gets all packages in the Game category.
+        ps = packages.search_local_packages('categories', 'Game')
+        self.assertSetEqual({p.id for p in ps}, {'sparks',
+            'scummvm.djwillis.0001', 'sample-package', 'bubbman2',
+            'the-lonely-tower', 'hexen2.pickle', 'package.pcsx_rearmed.notaz.r8'})
+
+
     def testGetAll(self):
         ps = packages.get_all()
         for p in ps:
