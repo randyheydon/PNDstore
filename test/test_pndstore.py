@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from pndstore_core import options, database_update, packages, libpnd
 
 # Latest repo version; only latest gets tested (for now).
-repo_version = 2.0
+repo_version = 3.0
 
 # Find/store files needed for testing here.
 testfiles = os.path.join(os.path.dirname(__file__), 'testdata')
@@ -123,31 +123,35 @@ class TestDatabaseUpdate(unittest.TestCase):
   "packages": [
     {
       "id":        "viceVIC.pickle",
+      "uri":       "http://example.org/test.pnd",
       "version": {
         "major":   "4",
         "minor":   "2",
         "release": "1",
-        "build":   "3"
+        "build":   "3",
+        "type": "release"
       },
-      "author": {
-        "name": "Ported by Pickle",
-        "website": "http://places.there",
-        "email": "one@two.three"
-      },
-      "vendor":    "dflemstr",
-      "uri":       "http://example.org/test.pnd",
       "localizations": {
         "en_US": {
           "title": "Vice xVIC",
           "description": "A VIC Emulator."
         }
       },
+      "info": "This package is good.",
+      "size": 6503485692,
+      "md5": "55538bb9c9ff46699c154d3de733c68b",
+      "modified-time": 401234,
       "rating": 12,
+      "author": {
+        "name": "Ported by Pickle",
+        "website": "http://places.there",
+        "email": "one@two.three"
+      },
+      "vendor":    "dflemstr",
+      "icon":     "http://example.org/test.png",
       "categories": [
         "Game"
-      ],
-      "md5": "55538bb9c9ff46699c154d3de733c68b",
-      "icon":     "http://example.org/test.png"
+      ]
     },
     {
       "id":        "Different VICE",
@@ -155,7 +159,8 @@ class TestDatabaseUpdate(unittest.TestCase):
         "major":   "9",
         "minor":   "3b",
         "release": "3",
-        "build":   "6"
+        "build":   "6",
+        "type": "beta"
       },
       "vendor":    "Tempel",
       "uri":       "http://example.org/test2.pnd",
@@ -214,42 +219,46 @@ class TestDatabaseUpdate(unittest.TestCase):
             c = db.execute('Select * From "%s"' % repo)
             i = c.fetchone()
             self.assertEqual(i['id'], 'viceVIC.pickle')
+            self.assertEqual(i['uri'], "http://example.org/test.pnd")
             self.assertEqual(i['version'], '4.2.1.3')
+            self.assertEqual(i['title'], "Vice xVIC")
+            self.assertEqual(i['description'], "A VIC Emulator.")
+            self.assertEqual(i['info'], "This package is good.")
+            self.assertEqual(i['size'], 6503485692)
+            self.assertEqual(i['md5'], '55538bb9c9ff46699c154d3de733c68b')
+            self.assertEqual(i['modified_time'], 401234)
+            self.assertEqual(i['rating'], 12)
             self.assertEqual(i['author_name'], "Ported by Pickle")
             self.assertEqual(i['author_website'], "http://places.there")
             self.assertEqual(i['author_email'], "one@two.three")
-            self.assertEqual(i['title'], "Vice xVIC")
-            self.assertEqual(i['description'], "A VIC Emulator.")
-            self.assertEqual(i['icon'], "http://example.org/test.png")
-            self.assertEqual(i['uri'], "http://example.org/test.pnd")
-            self.assertEqual(i['md5'], '55538bb9c9ff46699c154d3de733c68b')
             self.assertEqual(i['vendor'], "dflemstr")
-            self.assertEqual(i['rating'], 12)
-            self.assertEqual(i['applications'], None)
+            self.assertEqual(i['icon'], "http://example.org/test.png")
             self.assertEqual(i['previewpics'], None)
             self.assertEqual(i['licenses'], None)
             self.assertEqual(i['source'], None)
             self.assertEqual(i['categories'], "Game")
-            self.assertEqual(i['icon_cache'], None)
+            self.assertEqual(i['applications'], None)
             i = c.fetchone()
             self.assertEqual(i['id'], 'Different VICE')
-            self.assertEqual(i['version'], '9.3b.3.6')
+            self.assertEqual(i['uri'], "http://example.org/test2.pnd")
+            self.assertEqual(i['version'], '9.3b.3.6.beta')
+            self.assertEqual(i['title'], "Vice xVIC, eh?")
+            self.assertEqual(i['description'], "It's not prejudice if I'm Canadian, right?!")
+            self.assertEqual(i['info'], None)
+            self.assertEqual(i['size'], None)
+            self.assertEqual(i['md5'], 'd3de733c68b55538bb9c9ff46699c154')
+            self.assertEqual(i['modified_time'], None)
+            self.assertEqual(i['rating'], None)
             self.assertEqual(i['author_name'], None)
             self.assertEqual(i['author_website'], None)
             self.assertEqual(i['author_email'], None)
-            self.assertEqual(i['title'], "Vice xVIC, eh?")
-            self.assertEqual(i['description'], "It's not prejudice if I'm Canadian, right?!")
-            self.assertEqual(i['icon'], "http://example.org/test2.png")
-            self.assertEqual(i['uri'], "http://example.org/test2.pnd")
-            self.assertEqual(i['md5'], 'd3de733c68b55538bb9c9ff46699c154')
             self.assertEqual(i['vendor'], "Tempel")
-            self.assertEqual(i['rating'], None)
-            self.assertEqual(i['applications'], None)
+            self.assertEqual(i['icon'], "http://example.org/test2.png")
             self.assertEqual(i['previewpics'], None)
             self.assertEqual(i['licenses'], None)
             self.assertEqual(i['source'], None)
             self.assertEqual(i['categories'], "Game;Emulator")
-            self.assertEqual(i['icon_cache'], None)
+            self.assertEqual(i['applications'], None)
             i = c.fetchone()
             self.assertIsNone(i)
 

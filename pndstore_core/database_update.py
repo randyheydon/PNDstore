@@ -15,7 +15,7 @@ from hashlib import md5
 
 #This module currently supports these versions of the PND repository
 #specification as seen at http://pandorawiki.org/PND_repository_specification
-REPO_VERSION = (2.0,)
+REPO_VERSION = (2.0, 3.0)
 
 LOCAL_TABLE = 'local'
 REPO_INDEX_TABLE = 'repo_index'
@@ -44,23 +44,25 @@ def create_table(cursor, name):
     name = sanitize_sql(name)
     cursor.execute("""Create Table If Not Exists "%s" (
         id Text Primary Key,
-        version Text Not Null,
+        uri Text,
+        version Text,
+        title Text,
+        description Text,
+        info Text,
+        size Int,
+        md5 Text,
+        modified_time Int,
+        rating Int,
         author_name Text,
         author_website Text,
         author_email Text,
-        title Text,
-        description Text,
-        icon Text,
-        uri Text Not Null,
-        md5 Text Not Null,
         vendor Text,
-        rating Int,
-        applications Text,
+        icon Text,
         previewpics Text,
         licenses Text,
         source Text,
         categories Text,
-        icon_cache Buffer
+        applications Text
         )""" % name)
 
 
@@ -116,6 +118,85 @@ def open_repos():
     return repos
 
 
+def update_remote_package(table, pkg, cursor):
+    """Insert or replace information on a package into "table".
+    "pkg" is assumed to be a dictionary in the form given by each package
+    listed in the given repository."""
+    # Assume package ID and URI exist.  Not much to do if they don't.
+    id = pkg['id']
+    uri = pkg['uri']
+
+    # Assemble complete version number.
+    # If any components are missing, set them to '0'.
+    v = ['0','0','0','0','release']
+    for i,j in enumerate(('major','minor','release','build','type')):
+        try: v[i] = pkg['version'][j]
+        except: pass
+    # If type is "release", that's not very interesting, so ignore it.
+    v = v if v[-1] != 'release' else v[:-1]
+    version = '.'.join(v)
+
+    # Get title and description.
+    # First search for most preferred language available.
+    l = dict()
+    for lang in options.get_locale():
+        try:
+            l = pkg['localizations'][lang]
+            break
+        except: pass
+    # Then get try to get title and description in that language.
+    title=None; description=None
+    try:
+        title = l['title']
+        description = l['description']
+    except: pass
+
+    # Straightforward optional fields.
+    opt_field = {'info':None, 'size':None, 'md5':None, 'modified-time':None,
+        'rating':None, 'vendor':None, 'icon':None}
+    for i in opt_field.iterkeys():
+        try: opt_field[i] = pkg[i]
+        except: pass
+
+    # Optional author information fields.
+    author = {'name':None, 'website':None, 'email':None}
+    for i in author.iterkeys():
+        try: author[i] = pkg['author'][i]
+        except: pass
+
+    # Optional array fields.  Database cannot hold arrays, so combine all
+    # elements of each array with a separator character.
+    opt_list = {'previewpics':None, 'licenses':None, 'source':None,
+        'categories':None}
+    for i in opt_list.iterkeys():
+        try: opt_list[i] = SEPCHAR.join(pkg[i])
+        except: pass
+
+    # Insert extracted data into table.
+    cursor.execute("""Insert Or Replace Into "%s" Values
+        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
+        ( id,
+        uri,
+        version,
+        title,
+        description,
+        opt_field['info'],
+        opt_field['size'],
+        opt_field['md5'],
+        opt_field['modified-time'],
+        opt_field['rating'],
+        author['name'],
+        author['website'],
+        author['email'],
+        opt_field['vendor'],
+        opt_field['icon'],
+        opt_list['previewpics'],
+        opt_list['licenses'],
+        opt_list['source'],
+        opt_list['categories'],
+        None ) )
+
+
 def update_remote_url(url, cursor):
     """Adds database table for the repository held by the url object."""
     #Parse JSON.
@@ -145,80 +226,11 @@ def update_remote_url(url, cursor):
     cursor.execute('Drop Table If Exists "%s"' % table)
     create_table(cursor, table)
 
-    #Insert Or Replace for each package in repo.
-    #TODO: Break into subfunctions?
+    #Parse each package in repo.
     for pkg in repo["packages"]:
-
-        #Get info in preferred language (fail if none available).
-        title=None; description=None
-        for lang in options.get_locale():
-            try:
-                title = pkg['localizations'][lang]['title']
-                description = pkg['localizations'][lang]['description']
-                break
-            except KeyError: pass
-        if title is None or description is None:
-            raise RepoError('A package does not have any usable language.')
-
-        # These fields will not be present for every app.
-        opt_field = {'vendor':None, 'icon':None, 'rating':None}
-        for i in opt_field.iterkeys():
-            try: opt_field[i] = pkg[i]
-            except KeyError: pass
-
-        author = {'name':None, 'website':None, 'email':None}
-        for i in author.iterkeys():
-            try: author[i] = pkg['author'][i]
-            except KeyError: pass
-
-        # These fields should only be used if not present in the
-        # applications array.  Set them here, then override with
-        # contents of applications array if present.
-        opt_list = {'previewpics':None, 'licenses':None,
-            'source':None, 'categories':None}
-        for i in opt_list.iterkeys():
-            try: opt_list[i] = SEPCHAR.join(pkg[i])
-            except KeyError: pass
-
-        applications = None
-        try:
-            applist = pkg['applications']
-            applications = SEPCHAR.join(
-                [app['id'] for app in applist] )
-
-            # Join all lists of all apps into one megalist.
-            for i in opt_list.iterkeys():
-                opt_list[i] = SEPCHAR.join([ SEPCHAR.join(app[i])
-                    for app in applist ] )
-
-        except KeyError: pass
-
-        cursor.execute("""Insert Or Replace Into "%s" Values
-            (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
-            ( pkg['id'],
-            '.'.join( (
-                pkg['version']['major'],
-                pkg['version']['minor'],
-                pkg['version']['release'],
-                pkg['version']['build'], ) ),
-            author['name'],
-            author['website'],
-            author['email'],
-            title,
-            description,
-            opt_field['icon'],
-            pkg['uri'],
-            pkg['md5'],
-            opt_field['vendor'],
-            opt_field['rating'],
-            applications,
-            opt_list['previewpics'],
-            opt_list['licenses'],
-            opt_list['source'],
-            opt_list['categories'],
-            None) )
-        #TODO: make sure no required fields are missing. covered by try and Not Null?
-        #TODO: Don't erase icon_cache if icon hasn't changed.
+        try: update_remote_package(table, pkg, cursor)
+        except Exception as e:
+            warnings.warn("Could not process remote package: %s" % repr(e))
 
     #Now repo is all updated, let the index know its etag/last-modified.
     headers = url.info()
@@ -391,25 +403,27 @@ def update_local_file(path, db_conn):
     # Output from libpnd gives encoded bytestrings, not Unicode strings.
     db_conn.text_factory = str
     db_conn.execute("""Insert Or Replace Into "%s" Values
-        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
+        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
         ( pkgid,
+        path,
         version,
+        title,
+        description,
+        None, # Likely no use for "info" on installed packages.
+        None, # TODO: size field
+        m.hexdigest(), # TODO: Just None?
+        None, # TODO: modified_time field?
+        None, # No use for "rating" either.
         author_name,
         author_website,
         author_email,
-        title,
-        description,
+        None, # No use for "vendor" either.
         icon,
-        path,
-        m.hexdigest(),
-        None, # I see no use for "vendor" on installed apps.
-        None, # Nor "rating".
-        applications,
         previewpics,
         None, # TODO: Licenses once libpnd can pull them.
         None, # TODO: Sources once libpnd can pull them.
         categories,
-        None) ) # TODO: Get icon buffer with pnd_desktop's pnd_emit_icon_to_buffer
+        applications, ) )
 
     # Clean up the pxml handle.
     for i in xrange(n_apps):
