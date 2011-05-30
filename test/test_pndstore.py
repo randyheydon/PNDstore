@@ -2,7 +2,7 @@
 """Tests the various core (non-gui-related) elements of pndstore.
 For many of these tests to work, libpnd.so.1 must be loadable.  Make sure it's
 installed (ie: on a Pandora), or accessible by LD_LIBRARY_PATH."""
-import unittest, shutil, os.path, locale, sqlite3, ctypes, shutil
+import unittest, shutil, os.path, locale, sqlite3, ctypes, shutil, warnings
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -278,7 +278,12 @@ class TestDatabaseUpdate(unittest.TestCase):
             #    database_update.update_remote_url,
             #    database_update.open_repos()[0], c)
 
-        database_update.update_remote()
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            database_update.update_remote()
+            # Check appropriate warning is shown.
+            self.assertEqual(len(w), 1)
+            self.assertIn('Could not process', str(w[0].message))
         # Bad repo (first) must be empty.
         self.assertRaises(TypeError, self._check_entries,
             options.get_repos()[0])
@@ -299,7 +304,12 @@ class TestDatabaseUpdate(unittest.TestCase):
             f.write('\n'.join(new))
 
         # Make sure other two still update correctly.
-        database_update.update_remote()
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            database_update.update_remote()
+            # Check appropriate warning is shown.
+            self.assertEqual(len(w), 1)
+            self.assertIn('Could not reach repo', str(w[0].message))
         r = options.get_repos()
         self._check_entries(r[0])
         self.assertRaises(TypeError, self._check_entries, r[1])
@@ -698,7 +708,9 @@ class TestPackages(unittest.TestCase):
         new.insert(2, '"http://notreal.ihope",')
         with open(options.get_cfg(), 'w') as f:
             f.write('\n'.join(new))
-        database_update.update_remote()
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            database_update.update_remote()
         packages.get_all()
 
 
