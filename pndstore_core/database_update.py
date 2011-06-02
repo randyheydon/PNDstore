@@ -4,6 +4,12 @@ applications.  Consumers of this module will likely only need the functions
 update_remote and update_local (and maybe update_local_file, if you're feeling
 fancy).
 
+On import, this module creates the database that stores package information and
+creates the base set of tables that are expected to be in it.  This database is
+created in the working directory specified by pndstore_core.options.
+Therefore, you must ensure that options.working_dir is set to the desired
+directory *before* this module is imported.
+
 Concurrency note: Most functions here make changes to the database.  However,
 they all create their own connections and cursors; since sqlite can handle
 concurrent database writes automatically, these functions should be thread safe.

@@ -58,10 +58,10 @@ if opts.install and opts.remove:
 if opts.remove_appdata:
     parser.error("Sorry, appdata removal hasn't been implemented yet.")
 
-from pndstore_core import database_update, packages
-
 if opts.working_dir is not None:
     options.working_dir = opts.working_dir
+
+from pndstore_core import database_update, packages
 
 if opts.update:
     opts.update_remote = True
