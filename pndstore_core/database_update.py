@@ -9,7 +9,7 @@ they all create their own connections and cursors; since sqlite can handle
 concurrent database writes automatically, these functions should be thread safe.
 """
 
-import options, libpnd, urllib2, sqlite3, json, ctypes, warnings
+import options, libpnd, urllib2, sqlite3, json, ctypes, warnings, time
 import xml.etree.cElementTree as etree
 from hashlib import md5
 
@@ -20,6 +20,11 @@ REPO_VERSION = (2.0, 3.0)
 LOCAL_TABLE = 'local'
 REPO_INDEX_TABLE = 'repo_index'
 SEPCHAR = ';' # Character that defines list separations in the database.
+
+# Minimum amount of time to wait between full updates (in seconds).
+FULL_UPDATE_TIME = 3000000 # ~35 days.
+# The substring that gets replaced in updates URLs, as given in the repo spec.
+TIME_SUBSTRING = '%time%'
 
 PXML_NAMESPACE = 'http://openpandora.org/namespaces/PXML'
 xml_child = lambda s: '{%s}%s' % (PXML_NAMESPACE, s)
@@ -64,58 +69,6 @@ def create_table(cursor, name):
         categories Text,
         applications Text
         )""" % name)
-
-
-def open_repos():
-    repos = []
-    with sqlite3.connect(options.get_database()) as db:
-        db.row_factory = sqlite3.Row
-        c = db.cursor()
-        #Create index for all repositories to track important info.
-        c.execute("""Create Table If Not Exists "%s" (
-            url Text Primary Key, name Text, etag Text, last_modified Text
-            )""" % REPO_INDEX_TABLE)
-
-        for url in options.get_repos():
-            #Check if repo exists in index and has an etag/last-modified.
-            table_id = sanitize_sql(url)
-            c.execute('Select etag,last_modified From "%s" Where url=?'
-                %REPO_INDEX_TABLE, (table_id,) )
-            result = c.fetchone()
-
-            if result is None:
-                # This repo is not yet in the index (it's the first time it's
-                # been checked), so make an empty entry and table for it.
-                c.execute('Insert Into "%s" (url) Values (?)'
-                    %REPO_INDEX_TABLE, (table_id,) )
-                create_table(c, table_id)
-                result = (None, None)
-            etag, last_modified = result
-
-            #Do a conditional get.
-            # TODO: A way to force an update.
-            req = urllib2.Request(url, headers={
-                'If-None-Match':etag, 'If-Modified-Since':last_modified})
-
-            class NotModifiedHandler(urllib2.BaseHandler):
-                def http_error_304(self, req, fp, code, message, headers):
-                    return 304
-
-            opener = urllib2.build_opener(NotModifiedHandler())
-            try:
-                url_handle = opener.open(req)
-                # If no error, add to list to be read by update_remote.
-                if url_handle != 304:
-                    repos.append(url_handle)
-            except Exception as e:
-                warnings.warn("Could not reach repo %s: %s" % (url, repr(e)))
-
-        db.commit()
-
-        #TODO: If a repo gets removed from the cfg, perhaps this function
-        #should remove its index entry and drop its table.
-
-    return repos
 
 
 def update_remote_package(table, pkg, cursor):
@@ -197,65 +150,107 @@ def update_remote_package(table, pkg, cursor):
         None ) )
 
 
-def update_remote_url(url, cursor):
-    """Adds database table for the repository held by the url object."""
-    #Parse JSON.
-    #TODO: Is there any way to gracefully handle a malformed feed?
-    repo = json.load(url)
+def update_remote_url(url, cursor, full_update=None):
+    """Adds database table for the repository held by the url object.
+    full_update may be True (to force an update with the full repository),
+    False (to force use of the updates-only URL, if available), or None (to
+    select mode automatically)."""
 
-    # Check it's the right version.
-    # Better, perhaps, for it to just try its best, then give an old-fashioned
-    # failure.  This prevents any problems from milkshake's repo updating its
-    # version before everyone has an updated PNDstore.
-    #v = repo["repository"]["version"]
-    #if v not in REPO_VERSION:
-    #    raise RepoError(
-    #        'Incorrect repository version (required one of %s, got %f)'
-    #        % (REPO_VERSION, v))
-
-    #Create table from scratch for this repo.
-    #Drops it first so no old entries get left behind.
-    #TODO: Yes, there are probably more efficient ways than
-    #dropping the whole thing, whatever, I'll get to it.
-    #FIXME: Will r.url give the same url listed in the cfg?
-    table = sanitize_sql(url.url)
+    table = sanitize_sql(url)
     if table in (LOCAL_TABLE, REPO_INDEX_TABLE):
         raise RepoError(
             'Cannot handle a repo named "%s"; name is reserved for internal use.'
             % table)
-    cursor.execute('Drop Table If Exists "%s"' % table)
-    create_table(cursor, table)
 
-    #Parse each package in repo.
-    for pkg in repo["packages"]:
-        try: update_remote_package(table, pkg, cursor)
+    # Check if repo exists in index and has an updates URL.
+    cursor.execute('''Select etag, last_modified, updates_url, last_update,
+        last_full_update From "%s" Where url=?''' % REPO_INDEX_TABLE, (table,) )
+    result = cursor.fetchone()
+
+    if result is None:
+        # This repo is not yet in the index (it's the first time it's
+        # been checked), so make an empty entry and table for it.
+        cursor.execute('Insert Into "%s" (url) Values (?)'
+            %REPO_INDEX_TABLE, (table,) )
+        create_table(cursor, table)
+        result = (None, None, None, 0, 0)
+    etag, last_modified, updates_url, last_update, last_full_update = result
+    # Ensure that the right substring is in updates_url.
+    updates_url = updates_url if (isinstance(updates_url, basestring) and
+        TIME_SUBSTRING in updates_url) else None
+
+    # If autoselecting update mode, full update if it has been too long since
+    # the last full update.  This is to periodically flush removed packages
+    # from the database.
+    t = time.time()
+    if full_update is None:
+        full_update = t - last_full_update > FULL_UPDATE_TIME
+
+    # Perform a standard full repository update.
+    #if full_update or (updates_url is None):
+    if True:
+        # Use conditional gets if it makes sense to do so.
+        req = urllib2.Request(url, headers={} if full_update else {
+            'If-None-Match':etag, 'If-Modified-Since':last_modified})
+
+        class NotModifiedHandler(urllib2.BaseHandler):
+            def http_error_304(self, req, fp, code, message, headers):
+                return 304
+
+        opener = urllib2.build_opener(NotModifiedHandler())
+        try:
+            url_handle = opener.open(req)
         except Exception as e:
-            warnings.warn("Could not process remote package: %s" % repr(e))
+            warnings.warn("Could not reach repo %s: %s" % (url, repr(e)))
+            return
 
-    #Now repo is all updated, let the index know its etag/last-modified.
-    headers = url.info()
-    cursor.execute('Update "%s" Set name=?, etag=?,last_modified=? Where url=?'
-        %REPO_INDEX_TABLE, (
-            repo['repository']['name'],
-            headers.getheader('ETag'),
-            headers.getheader('Last-Modified'),
-            table) )
+        # If no error, clear out old table for complete replacement.
+        if url_handle != 304:
+            cursor.execute('Drop Table If Exists "%s"' % table)
+            create_table(cursor, table)
+
+            # Parse JSON.
+            # TODO: Is there any way to gracefully handle a malformed feed?
+            repo = json.load(url_handle)
+
+            # Parse each package in repo.
+            for pkg in repo["packages"]:
+                try: update_remote_package(table, pkg, cursor)
+                except Exception as e:
+                    warnings.warn("Could not process remote package: %s" % repr(e))
+
+            # Now repo is all updated, let the index know its information.
+            headers = url_handle.info()
+            try: name = repo['repository']['name']
+            except: name = None
+            try: updates_url = repo['repository']['updates']
+            except: updates_url = None
+            cursor.execute('''Update "%s" Set name=?, etag=?, last_modified=?,
+                updates_url=?, last_update=?, last_full_update=? Where url=?'''
+                %REPO_INDEX_TABLE, (
+                    name,
+                    headers.getheader('ETag'),
+                    headers.getheader('Last-Modified'),
+                    updates_url,
+                    t, t,
+                    table) )
+
+    # update
 
 
 def update_remote():
     """Adds a table for each repository to the database, adding an entry for each
     application listed in the repository."""
-    #Open database connection.
+    # Open database connection.
     with sqlite3.connect(options.get_database()) as db:
         db.row_factory = sqlite3.Row
         c = db.cursor()
-        repos = open_repos()
-        for r in repos:
+
+        for url in options.get_repos():
             try:
-                update_remote_url(r, c)
+                update_remote_url(url, c)
             except Exception as e:
-                warnings.warn("Could not process %s: %s" % (r.url, repr(e)))
-            r.close() # Shouldn't need to, but might as well.
+                warnings.warn("Could not process %s: %s" % (url, repr(e)))
 
 
 
@@ -480,7 +475,8 @@ def update_local():
 with sqlite3.connect(options.get_database()) as db:
     # Index for all repositories to track important info.
     db.execute("""Create Table If Not Exists "%s" (
-        url Text Primary Key, name Text, etag Text, last_modified Text
+        url Text Primary Key, name Text, etag Text, last_modified Text,
+        updates_url Text, last_update Text, last_full_update Text
         )""" % REPO_INDEX_TABLE)
     # Table of installed PNDs.
     create_table(db, LOCAL_TABLE)

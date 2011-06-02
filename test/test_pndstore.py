@@ -198,6 +198,7 @@ class TestDatabaseUpdate(unittest.TestCase):
 
     def setUp(self):
         options.working_dir = 'temp'
+        reload(database_update) # To trigger base table creation.
 
         #Create some local repository files for testing.
         repo_files = ('temp/first.json', 'temp/second.json')
@@ -279,7 +280,7 @@ class TestDatabaseUpdate(unittest.TestCase):
                 os.path.basename(options.get_repos()[0]))
             with open(repo0, 'a') as r: r.write(',')
             self.assertRaises(ValueError, database_update.update_remote_url,
-                database_update.open_repos()[0], c)
+                options.get_repos()[0], c)
             # Test for incorrect version.
             #with open(repo0, 'w') as r:
             #    r.write(self.repotxt % (os.path.basename(repo0), 99.7))
@@ -562,6 +563,7 @@ class TestPackages(unittest.TestCase):
 
     def setUp(self):
         options.working_dir = 'temp'
+        reload(database_update)
         with open(options.get_cfg(),'w') as cfg:
             cfg.write(self.cfg_text)
         database_update.update_remote()
