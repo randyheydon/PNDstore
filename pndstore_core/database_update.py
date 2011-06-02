@@ -472,3 +472,17 @@ def update_local():
                         warnings.warn("Could not process %s: %s" % (path, repr(e)))
                     done.add(path)
         db.commit()
+
+
+
+# On import, this will execute, ensuring that necessary tables are created and
+# can be depended upon to exist in later code.
+with sqlite3.connect(options.get_database()) as db:
+    # Index for all repositories to track important info.
+    db.execute("""Create Table If Not Exists "%s" (
+        url Text Primary Key, name Text, etag Text, last_modified Text
+        )""" % REPO_INDEX_TABLE)
+    # Table of installed PNDs.
+    create_table(db, LOCAL_TABLE)
+
+    db.commit()

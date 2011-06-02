@@ -685,26 +685,11 @@ class TestPackages(unittest.TestCase):
 
 
     def testMissingTables(self):
-        # No tables exist.
         os.remove(options.get_database())
-        p = packages.Package('not-even-real')
-        self.assertFalse(p.local.exists)
-        self.assertItemsEqual(p.remote, [])
-        self.assertItemsEqual(packages.get_all_local(), [])
-        self.assertItemsEqual(packages.get_all(), [])
-
-        # Local, but not remote or remote index tables exist.
+        reload(database_update) # To trigger base table creation.
         database_update.update_local()
-        p = packages.Package('not-even-real')
-        self.assertFalse(p.local.exists)
-        self.assertItemsEqual(p.remote, [])
-        self.assertEqual(len(packages.get_all_local()), len(packages.get_all()))
 
-        # Empty index table exists.
-        with sqlite3.connect(options.get_database()) as db:
-            db.execute("""Create Table "%s" (
-                url Text Primary Key, name Text, etag Text, last_modified Text
-                )""" % database_update.REPO_INDEX_TABLE)
+        # Empty index table.
         p = packages.Package('not-even-real')
         self.assertFalse(p.local.exists)
         self.assertItemsEqual(p.remote, [])
