@@ -27,7 +27,7 @@ def get_cfg():
     cfg_path = os.path.join(get_working_dir(), 'pndstore.cfg')
     if not os.path.isfile(cfg_path):
         cfg_template = os.path.join(os.path.dirname(__file__), 'cfg', 'default.cfg')
-        shutil.copy(cfg_template, cfg_path)
+        shutil.copyfile(cfg_template, cfg_path)
     return cfg_path
 
 
