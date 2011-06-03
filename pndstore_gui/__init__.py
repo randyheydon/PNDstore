@@ -18,6 +18,12 @@ class PNDstore(object):
 
         self.statusbar = builder.get_object('statusbar')
 
+        # Accelerator keys.
+        accels = gtk.AccelGroup()
+        key, mod = gtk.accelerator_parse('<Control>Q')
+        accels.connect_group(key, mod, 0, self.on_window_destroy)
+        self.window.add_accel_group(accels)
+
         # Load up the treemodel with package info.
         self.view = builder.get_object('treeview')
         self.update_treeview()
