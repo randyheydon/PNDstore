@@ -73,7 +73,8 @@ def create_table(cursor, name):
         licenses Text,
         source Text,
         categories Text,
-        applications Text
+        applications Text,
+        appdatas Text
         )""" % name)
 
 
@@ -133,7 +134,7 @@ def update_remote_package(table, pkg, cursor):
 
     # Insert extracted data into table.
     cursor.execute("""Insert Or Replace Into "%s" Values
-        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
+        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % table,
         ( id,
         uri,
         version,
@@ -153,7 +154,7 @@ def update_remote_package(table, pkg, cursor):
         opt_list['licenses'],
         opt_list['source'],
         opt_list['categories'],
-        None ) )
+        None, None ) )
 
 
 def update_remote_url(url, cursor, full_update=None):
@@ -436,7 +437,7 @@ def update_local_file(path, db_conn):
     # Output from libpnd gives encoded bytestrings, not Unicode strings.
     db_conn.text_factory = str
     db_conn.execute("""Insert Or Replace Into "%s" Values
-        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
+        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""" % LOCAL_TABLE,
         ( pkgid,
         path,
         version,
@@ -456,7 +457,8 @@ def update_local_file(path, db_conn):
         None, # TODO: Licenses once libpnd can pull them.
         None, # TODO: Sources once libpnd can pull them.
         categories,
-        applications, ) )
+        applications,
+        None ) )
 
     # Clean up the pxml handle.
     for i in xrange(n_apps):
