@@ -74,13 +74,22 @@ def get_locale():
 def get_searchpath_default():
     conf_path = libpnd.conf_query_searchpath()
     if not conf_path:
-        raise ValueError("Your install of libpnd isn't behaving right! pnd_conf_query_searchpath has returned null.")
+        raise ValueError("""Your install of libpnd isn't behaving right!
+            pnd_conf_query_searchpath has returned null.""")
 
-    conf = libpnd.conf_fetch_by_name('apps', conf_path)
-    if not conf:
-        raise ValueError("Your install of libpnd isn't behaving right!  pnd_conf_fetch_by_name has returned null.")
+    apps = libpnd.conf_fetch_by_name('apps', conf_path)
+    desktop = libpnd.conf_fetch_by_name('desktop', conf_path)
+    mmenu = libpnd.conf_fetch_by_name('mmenu.conf', conf_path)
+    if (not apps) or (not desktop) or (not mmenu):
+        raise ValueError("""Your install of libpnd isn't behaving right!
+            pnd_conf_fetch_by_name has returned null.""")
 
-    return libpnd.conf_get_as_char(conf, 'autodiscovery.searchpath').split(':')
+    p = set(libpnd.conf_get_as_char(apps, 'autodiscovery.searchpath').split(':'))
+    p.update(libpnd.conf_get_as_char(desktop, 'desktop.searchpath').split(':'))
+    p.update(libpnd.conf_get_as_char(desktop, 'menu.searchpath').split(':'))
+    p.update(libpnd.conf_get_as_char(mmenu, 'minimenu.aux_searchpath').split(':'))
+
+    return p
 
 
 def get_searchpath():

@@ -89,8 +89,10 @@ class TestOptions(unittest.TestCase):
         # its default behaviour, even though this won't cause problems.
         self.assertItemsEqual(options.get_searchpath(),
             ['/media/*/pandora/apps','/media/*/pandora/desktop',
-            '/media/*/pandora/menu','/usr/pandora/apps'],
-            "This failure could indicate a change in the behaviour of libpnd, rather than a failure in the Python wrapper.  Check that."
+            '/media/*/pandora/menu','/usr/pandora/apps', '/media/*/<1>',
+            '/media/*/pandora/mmenu','/usr/pandora/mmenu'],
+            """This failure could indicate a change in the behaviour of libpnd,
+            rather than a failure in the Python wrapper.  Check that."""
         )
 
         with open(options.get_cfg(), 'w') as cfg:
