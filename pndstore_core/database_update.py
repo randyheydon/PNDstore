@@ -188,13 +188,12 @@ def update_remote_url(url, cursor, full_update=None):
     # If autoselecting update mode, full update if it has been too long since
     # the last full update.  This is to periodically flush removed packages
     # from the database.
-    t = time.time()
+    t = int(time.time())
     if full_update is None:
-        full_update = t - last_full_update > FULL_UPDATE_TIME
+        full_update = t - int(last_full_update) > FULL_UPDATE_TIME
 
     # Perform a standard full repository update.
-    #if full_update or (updates_url is None):
-    if True:
+    if full_update or not isinstance(updates_url, basestring):
         # Use conditional gets if it makes sense to do so.
         req = urllib2.Request(url, headers={} if full_update else {
             'If-None-Match':etag, 'If-Modified-Since':last_modified})
@@ -241,7 +240,40 @@ def update_remote_url(url, cursor, full_update=None):
                     t, t,
                     table) )
 
-    # update
+    # Get only changes since the last update.
+    else:
+        # Open updates URL with time of last update.
+        url = updates_url.replace('%time%', str(last_update))
+        try:
+            url_handle = urllib2.urlopen(url)
+        except Exception as e:
+            warnings.warn("Could not reach update %s: %s" % (url, repr(e)))
+            return
+
+        t = int(time.time())
+        # Parse JSON.
+        # TODO: Is there any way to gracefully handle a malformed feed?
+        repo = json.load(url_handle)
+
+        # If any packages have been updated, parse them.
+        if repo["packages"] is not None:
+            for pkg in repo["packages"]:
+                try: update_remote_package(table, pkg, cursor)
+                except Exception as e:
+                    warnings.warn("Could not process remote package: %s" % repr(e))
+
+        # Now repo is all updated, let the index know its information.
+        headers = url_handle.info()
+        try: name = repo['repository']['name']
+        except: name = None
+        try: updates_url = repo['repository']['updates']
+        except: updates_url = None
+        cursor.execute('''Update "%s" Set name=?, updates_url=?, last_update=?
+            Where url=?''' % REPO_INDEX_TABLE, (
+                name,
+                updates_url,
+                t,
+                table) )
 
 
 def update_remote():
