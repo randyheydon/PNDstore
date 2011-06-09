@@ -96,8 +96,16 @@ class PNDstore(object):
 
                             self.statusbar.push(self.cid, 'Upgrading %s...' %
                                 pkg.local.db_entry['title'])
-                            pkg.upgrade()
-                            self.statusbar.pop(self.cid)
+                            try:
+                                pkg.upgrade()
+                            except Exception as e:
+                                self.statusbar.pop(self.cid)
+                                self.statusbar.push(self.cid,
+                                    'Failed to upgrade %s: %s' %
+                                    (pkg.local.db_entry['title'], repr(e)))
+                                time.sleep(5)
+                            finally:
+                                self.statusbar.pop(self.cid)
 
                             self.update_treeview()
 
@@ -132,8 +140,16 @@ class PNDstore(object):
 
                         self.statusbar.push(self.cid, 'Installing %s...' %
                             pkg.get_latest().db_entry['title'])
-                        pkg.install(box.get_active_text())
-                        self.statusbar.pop(self.cid)
+                        try:
+                            pkg.install(box.get_active_text())
+                        except Exception as e:
+                            self.statusbar.pop(self.cid)
+                            self.statusbar.push(self.cid,
+                                'Failed to install %s: %s' %
+                                (pkg.get_latest().db_entry['title'], repr(e)))
+                            time.sleep(5)
+                        finally:
+                            self.statusbar.pop(self.cid)
 
                         self.update_treeview()
 
@@ -189,8 +205,16 @@ class PNDstore(object):
                         if checks[p].get_active():
                             self.statusbar.push(self.cid, 'Upgrading %s...' %
                                 p.local.db_entry['title'])
-                            p.upgrade()
-                            self.statusbar.pop(self.cid)
+                            try:
+                                p.upgrade()
+                            except Exception as e:
+                                self.statusbar.pop(self.cid)
+                                self.statusbar.push(self.cid,
+                                    'Failed to upgrade %s: %s' %
+                                    (p.local.db_entry['title'], repr(e)))
+                                time.sleep(5)
+                            finally:
+                                self.statusbar.pop(self.cid)
 
                     self.update_treeview()
 
