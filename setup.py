@@ -3,9 +3,9 @@ from distutils.core import setup
 
 setup(
     name = 'PNDstore',
-    version = '0.3.2',
+    version = '1.0',
     description = 'Install and update PNDs',
-    long_description = open('README.txt').read(),
+    long_description = open('README.rst').read(),
     author = 'Randy Heydon',
     author_email = 'randy.heydon@clockworklab.net',
     url = 'https://github.com/Tempel/PNDstore',

@@ -36,7 +36,7 @@ class TestOptions(unittest.TestCase):
 
     def testDatabase(self):
         self.assertEqual(options.get_database(),
-            os.path.abspath('temp/app_database.sqlite'))
+            os.path.abspath('temp/database_1.0.sqlite'))
         #This file doesn't have to exist, because it will be created by the
         #database_update module.  But the directory must exist for the
         #database to be created.
