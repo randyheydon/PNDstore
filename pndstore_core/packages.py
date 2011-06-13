@@ -8,6 +8,7 @@ function is useful.
 import options, database_update, sqlite3, os, shutil, urllib2, glob
 from hashlib import md5
 from distutils.version import LooseVersion
+from weakref import WeakValueDictionary
 from database_update import LOCAL_TABLE, REPO_INDEX_TABLE, SEPCHAR
 
 
@@ -38,13 +39,8 @@ def get_remote_tables():
     """Checks the remote index table to find the names of all tables containing
     data from remote databases.  Returns a list of strings."""
     with sqlite3.connect(options.get_database()) as db:
-        db.row_factory = sqlite3.Row
-        try:
-            c = db.execute('Select url From "%s"' % REPO_INDEX_TABLE)
-            names = [i['url'] for i in c]
-        except sqlite3.OperationalError:
-            names = []
-    return names
+        c = db.execute('Select url From "%s"' % REPO_INDEX_TABLE)
+        return [ i[0] for i in c ]
 
 
 def get_searchpath_full():
@@ -75,8 +71,8 @@ class PackageInstance(object):
                 self.db_entry = None
 
         self.exists = self.db_entry is not None
-        self.version = ( self.exists and PNDVersion(self.db_entry['version'])
-            or PNDVersion('A') ) # This should be the lowest possible version.
+        self.version = PNDVersion(self.db_entry['version'] if self.exists
+            else 'A') # This should be the lowest possible version.
 
 
     def install(self, installdir):
@@ -98,12 +94,15 @@ class PackageInstance(object):
 
         # Put file in place.  No need to check if it already exists; if it
         # does, we probably want to replace it anyways.
-        m = md5()
+        # In the process, check its MD5 sum against the one given in the repo.
+        # MD5 is optional in the spec, so only calculate it if it's not given.
+        m_target = self.db_entry['md5']
+        if m_target: m = md5()
         with open(path, 'wb') as dest:
             for chunk in iter(lambda: p.read(128*m.block_size), ''):
-                m.update(chunk)
+                if m_target: m.update(chunk)
                 dest.write(chunk)
-        if not m.hexdigest() == self.db_entry['md5']:
+        if m_target and (m.hexdigest() != m_target):
             raise PackageError("File corrupted.  MD5 sums do not match.")
 
         # Update local database with new info.
@@ -116,6 +115,21 @@ class PackageInstance(object):
 class Package(object):
     """Informs on and modifies any package defined by a package id.  Includes
     all locally-installed and remotely-available versions of that package."""
+
+    # This ensures that only one Package object can exist for a given ID (a
+    # variant of the Singleton pattern?).  This lets Package objects be
+    # considered the same even if created independently of each other (such as
+    # through multiple calls to search_local_packages).  Also ensures that one
+    # instance installing or upgrading will not cause another instance to
+    # become out-of-date.
+    _existing = WeakValueDictionary()
+    def __new__(cls, pkgid):
+        try:
+            return cls._existing[pkgid]
+        except KeyError:
+            p = object.__new__(cls, pkgid)
+            cls._existing[pkgid] = p
+            return p
 
     def __init__(self, pkgid):
         self.id = pkgid
@@ -213,16 +227,25 @@ class Package(object):
 
 
 
+def search_local_packages(col, val):
+    """Find all packages containing the given value in the given column.
+    Also handles columns containing lists of data, ensuring that the given
+    value is an entry of that list, not just a substring of an entry."""
+    with sqlite3.connect(options.get_database()) as db:
+        c = db.execute( '''Select id From "%(tab)s" Where %(col)s Like ?
+            Or %(col)s Like ? Or %(col)s Like ? Or %(col)s Like ?'''
+            % {'tab':LOCAL_TABLE, 'col':col},
+            (val, val+SEPCHAR+'%', '%'+SEPCHAR+val,
+            '%'+SEPCHAR+val+SEPCHAR+'%') )
+
+    return [ Package(i[0]) for i in c ]
+
+
 def get_all():
     "Returns Package object for every available package, local or remote."
     tables = get_remote_tables()
+    tables.append(LOCAL_TABLE)
     with sqlite3.connect(options.get_database()) as db:
-        try:
-            # Dirty, dirty hack to check if LOCAL_TABLE exists.  Can't add it
-            # to the Union query if it doesn't.
-            db.execute('Select id From "%s" Where 0=1' % LOCAL_TABLE)
-            tables.append(LOCAL_TABLE)
-        except sqlite3.OperationalError: pass
         c = db.execute(
             ' Union '.join([ 'Select id From "%s"'%t for t in tables ]) )
         return [ Package(i[0]) for i in c ]
@@ -231,8 +254,7 @@ def get_all():
 def get_all_local():
     """Returns Package object for every installed package."""
     with sqlite3.connect(options.get_database()) as db:
-        try: c = db.execute('Select id From "%s"' % LOCAL_TABLE)
-        except sqlite3.OperationalError: return []
+        c = db.execute('Select id From "%s"' % LOCAL_TABLE)
         return [ Package(i[0]) for i in c ]
 
 

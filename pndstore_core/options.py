@@ -27,7 +27,7 @@ def get_cfg():
     cfg_path = os.path.join(get_working_dir(), 'pndstore.cfg')
     if not os.path.isfile(cfg_path):
         cfg_template = os.path.join(os.path.dirname(__file__), 'cfg', 'default.cfg')
-        shutil.copy(cfg_template, cfg_path)
+        shutil.copyfile(cfg_template, cfg_path)
     return cfg_path
 
 
@@ -35,7 +35,7 @@ def get_database():
     """Gives full path to main sqlite database file."""
     #Unlike in get_cfg, the database file does not need to be created here, as
     #sqlite will create it automatically if needed.
-    return os.path.abspath(os.path.join(get_working_dir(), 'app_database.sqlite'))
+    return os.path.abspath(os.path.join(get_working_dir(), 'database_1.0.sqlite'))
 
 
 def get_repos():
@@ -74,13 +74,22 @@ def get_locale():
 def get_searchpath_default():
     conf_path = libpnd.conf_query_searchpath()
     if not conf_path:
-        raise ValueError("Your install of libpnd isn't behaving right! pnd_conf_query_searchpath has returned null.")
+        raise ValueError("""Your install of libpnd isn't behaving right!
+            pnd_conf_query_searchpath has returned null.""")
 
-    conf = libpnd.conf_fetch_by_name('apps', conf_path)
-    if not conf:
-        raise ValueError("Your install of libpnd isn't behaving right!  pnd_conf_fetch_by_name has returned null.")
+    apps = libpnd.conf_fetch_by_name('apps', conf_path)
+    desktop = libpnd.conf_fetch_by_name('desktop', conf_path)
+    mmenu = libpnd.conf_fetch_by_name('mmenu.conf', conf_path)
+    if (not apps) or (not desktop) or (not mmenu):
+        raise ValueError("""Your install of libpnd isn't behaving right!
+            pnd_conf_fetch_by_name has returned null.""")
 
-    return libpnd.conf_get_as_char(conf, 'autodiscovery.searchpath').split(':')
+    p = set(libpnd.conf_get_as_char(apps, 'autodiscovery.searchpath').split(':'))
+    p.update(libpnd.conf_get_as_char(desktop, 'desktop.searchpath').split(':'))
+    p.update(libpnd.conf_get_as_char(desktop, 'menu.searchpath').split(':'))
+    p.update(libpnd.conf_get_as_char(mmenu, 'minimenu.aux_searchpath').split(':'))
+
+    return p
 
 
 def get_searchpath():

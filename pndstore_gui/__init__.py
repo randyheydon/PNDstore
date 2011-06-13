@@ -1,7 +1,7 @@
 """This package provides the graphical user interface to PNDstore."""
 
 import gtk, os.path, warnings, threading, time
-from pndstore import database_update, packages
+from pndstore_core import database_update, packages
 
 class PNDstore(object):
     "The main GUI object that does all the work."
@@ -17,6 +17,12 @@ class PNDstore(object):
         self.window.maximize()
 
         self.statusbar = builder.get_object('statusbar')
+
+        # Accelerator keys.
+        accels = gtk.AccelGroup()
+        key, mod = gtk.accelerator_parse('<Control>Q')
+        accels.connect_group(key, mod, 0, self.on_window_destroy)
+        self.window.add_accel_group(accels)
 
         # Load up the treemodel with package info.
         self.view = builder.get_object('treeview')
@@ -90,8 +96,16 @@ class PNDstore(object):
 
                             self.statusbar.push(self.cid, 'Upgrading %s...' %
                                 pkg.local.db_entry['title'])
-                            pkg.upgrade()
-                            self.statusbar.pop(self.cid)
+                            try:
+                                pkg.upgrade()
+                            except Exception as e:
+                                self.statusbar.pop(self.cid)
+                                self.statusbar.push(self.cid,
+                                    'Failed to upgrade %s: %s' %
+                                    (pkg.local.db_entry['title'], repr(e)))
+                                time.sleep(5)
+                            finally:
+                                self.statusbar.pop(self.cid)
 
                             self.update_treeview()
 
@@ -126,8 +140,16 @@ class PNDstore(object):
 
                         self.statusbar.push(self.cid, 'Installing %s...' %
                             pkg.get_latest().db_entry['title'])
-                        pkg.install(box.get_active_text())
-                        self.statusbar.pop(self.cid)
+                        try:
+                            pkg.install(box.get_active_text())
+                        except Exception as e:
+                            self.statusbar.pop(self.cid)
+                            self.statusbar.push(self.cid,
+                                'Failed to install %s: %s' %
+                                (pkg.get_latest().db_entry['title'], repr(e)))
+                            time.sleep(5)
+                        finally:
+                            self.statusbar.pop(self.cid)
 
                         self.update_treeview()
 
@@ -183,8 +205,16 @@ class PNDstore(object):
                         if checks[p].get_active():
                             self.statusbar.push(self.cid, 'Upgrading %s...' %
                                 p.local.db_entry['title'])
-                            p.upgrade()
-                            self.statusbar.pop(self.cid)
+                            try:
+                                p.upgrade()
+                            except Exception as e:
+                                self.statusbar.pop(self.cid)
+                                self.statusbar.push(self.cid,
+                                    'Failed to upgrade %s: %s' %
+                                    (p.local.db_entry['title'], repr(e)))
+                                time.sleep(5)
+                            finally:
+                                self.statusbar.pop(self.cid)
 
                     self.update_treeview()
 

@@ -4,6 +4,8 @@ This will hopefully eventually be folded into LukeVP's libpnd wrapper."""
 
 import ctypes as c
 
+# libstdc++ must be preloaded to allow libpnd to load.
+cpp = c.CDLL('libstdc++.so.6', mode=c.RTLD_GLOBAL)
 p = c.CDLL('libpnd.so.1')
 
 

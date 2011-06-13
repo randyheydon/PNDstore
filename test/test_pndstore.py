@@ -2,14 +2,14 @@
 """Tests the various core (non-gui-related) elements of pndstore.
 For many of these tests to work, libpnd.so.1 must be loadable.  Make sure it's
 installed (ie: on a Pandora), or accessible by LD_LIBRARY_PATH."""
-import unittest, shutil, os.path, locale, sqlite3, ctypes, shutil
+import unittest, shutil, os.path, locale, sqlite3, ctypes, shutil, warnings
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from pndstore import options, database_update, packages, libpnd
+from pndstore_core import options, database_update, packages, libpnd
 
 # Latest repo version; only latest gets tested (for now).
-repo_version = 2.0
+repo_version = 3.0
 
 # Find/store files needed for testing here.
 testfiles = os.path.join(os.path.dirname(__file__), 'testdata')
@@ -36,7 +36,7 @@ class TestOptions(unittest.TestCase):
 
     def testDatabase(self):
         self.assertEqual(options.get_database(),
-            os.path.abspath('temp/app_database.sqlite'))
+            os.path.abspath('temp/database_1.0.sqlite'))
         #This file doesn't have to exist, because it will be created by the
         #database_update module.  But the directory must exist for the
         #database to be created.
@@ -89,8 +89,10 @@ class TestOptions(unittest.TestCase):
         # its default behaviour, even though this won't cause problems.
         self.assertItemsEqual(options.get_searchpath(),
             ['/media/*/pandora/apps','/media/*/pandora/desktop',
-            '/media/*/pandora/menu','/usr/pandora/apps'],
-            "This failure could indicate a change in the behaviour of libpnd, rather than a failure in the Python wrapper.  Check that."
+            '/media/*/pandora/menu','/usr/pandora/apps', '/media/*/<1>',
+            '/media/*/pandora/mmenu','/usr/pandora/mmenu'],
+            """This failure could indicate a change in the behaviour of libpnd,
+            rather than a failure in the Python wrapper.  Check that."""
         )
 
         with open(options.get_cfg(), 'w') as cfg:
@@ -123,31 +125,35 @@ class TestDatabaseUpdate(unittest.TestCase):
   "packages": [
     {
       "id":        "viceVIC.pickle",
+      "uri":       "http://example.org/test.pnd",
       "version": {
         "major":   "4",
         "minor":   "2",
         "release": "1",
-        "build":   "3"
+        "build":   "3",
+        "type": "release"
       },
-      "author": {
-        "name": "Ported by Pickle",
-        "website": "http://places.there",
-        "email": "one@two.three"
-      },
-      "vendor":    "dflemstr",
-      "uri":       "http://example.org/test.pnd",
       "localizations": {
         "en_US": {
           "title": "Vice xVIC",
           "description": "A VIC Emulator."
         }
       },
+      "info": "This package is good.",
+      "size": 6503485692,
+      "md5": "55538bb9c9ff46699c154d3de733c68b",
+      "modified-time": 401234,
       "rating": 12,
+      "author": {
+        "name": "Ported by Pickle",
+        "website": "http://places.there",
+        "email": "one@two.three"
+      },
+      "vendor":    "dflemstr",
+      "icon":     "http://example.org/test.png",
       "categories": [
         "Game"
-      ],
-      "md5": "55538bb9c9ff46699c154d3de733c68b",
-      "icon":     "http://example.org/test.png"
+      ]
     },
     {
       "id":        "Different VICE",
@@ -155,7 +161,8 @@ class TestDatabaseUpdate(unittest.TestCase):
         "major":   "9",
         "minor":   "3b",
         "release": "3",
-        "build":   "6"
+        "build":   "6",
+        "type": "beta"
       },
       "vendor":    "Tempel",
       "uri":       "http://example.org/test2.pnd",
@@ -193,6 +200,7 @@ class TestDatabaseUpdate(unittest.TestCase):
 
     def setUp(self):
         options.working_dir = 'temp'
+        reload(database_update) # To trigger base table creation.
 
         #Create some local repository files for testing.
         repo_files = ('temp/first.json', 'temp/second.json')
@@ -214,42 +222,46 @@ class TestDatabaseUpdate(unittest.TestCase):
             c = db.execute('Select * From "%s"' % repo)
             i = c.fetchone()
             self.assertEqual(i['id'], 'viceVIC.pickle')
+            self.assertEqual(i['uri'], "http://example.org/test.pnd")
             self.assertEqual(i['version'], '4.2.1.3')
+            self.assertEqual(i['title'], "Vice xVIC")
+            self.assertEqual(i['description'], "A VIC Emulator.")
+            self.assertEqual(i['info'], "This package is good.")
+            self.assertEqual(i['size'], 6503485692)
+            self.assertEqual(i['md5'], '55538bb9c9ff46699c154d3de733c68b')
+            self.assertEqual(i['modified_time'], 401234)
+            self.assertEqual(i['rating'], 12)
             self.assertEqual(i['author_name'], "Ported by Pickle")
             self.assertEqual(i['author_website'], "http://places.there")
             self.assertEqual(i['author_email'], "one@two.three")
-            self.assertEqual(i['title'], "Vice xVIC")
-            self.assertEqual(i['description'], "A VIC Emulator.")
-            self.assertEqual(i['icon'], "http://example.org/test.png")
-            self.assertEqual(i['uri'], "http://example.org/test.pnd")
-            self.assertEqual(i['md5'], '55538bb9c9ff46699c154d3de733c68b')
             self.assertEqual(i['vendor'], "dflemstr")
-            self.assertEqual(i['rating'], 12)
-            self.assertEqual(i['applications'], None)
+            self.assertEqual(i['icon'], "http://example.org/test.png")
             self.assertEqual(i['previewpics'], None)
             self.assertEqual(i['licenses'], None)
             self.assertEqual(i['source'], None)
             self.assertEqual(i['categories'], "Game")
-            self.assertEqual(i['icon_cache'], None)
+            self.assertEqual(i['applications'], None)
             i = c.fetchone()
             self.assertEqual(i['id'], 'Different VICE')
-            self.assertEqual(i['version'], '9.3b.3.6')
+            self.assertEqual(i['uri'], "http://example.org/test2.pnd")
+            self.assertEqual(i['version'], '9.3b.3.6.beta')
+            self.assertEqual(i['title'], "Vice xVIC, eh?")
+            self.assertEqual(i['description'], "It's not prejudice if I'm Canadian, right?!")
+            self.assertEqual(i['info'], None)
+            self.assertEqual(i['size'], None)
+            self.assertEqual(i['md5'], 'd3de733c68b55538bb9c9ff46699c154')
+            self.assertEqual(i['modified_time'], None)
+            self.assertEqual(i['rating'], None)
             self.assertEqual(i['author_name'], None)
             self.assertEqual(i['author_website'], None)
             self.assertEqual(i['author_email'], None)
-            self.assertEqual(i['title'], "Vice xVIC, eh?")
-            self.assertEqual(i['description'], "It's not prejudice if I'm Canadian, right?!")
-            self.assertEqual(i['icon'], "http://example.org/test2.png")
-            self.assertEqual(i['uri'], "http://example.org/test2.pnd")
-            self.assertEqual(i['md5'], 'd3de733c68b55538bb9c9ff46699c154')
             self.assertEqual(i['vendor'], "Tempel")
-            self.assertEqual(i['rating'], None)
-            self.assertEqual(i['applications'], None)
+            self.assertEqual(i['icon'], "http://example.org/test2.png")
             self.assertEqual(i['previewpics'], None)
             self.assertEqual(i['licenses'], None)
             self.assertEqual(i['source'], None)
             self.assertEqual(i['categories'], "Game;Emulator")
-            self.assertEqual(i['icon_cache'], None)
+            self.assertEqual(i['applications'], None)
             i = c.fetchone()
             self.assertIsNone(i)
 
@@ -270,7 +282,7 @@ class TestDatabaseUpdate(unittest.TestCase):
                 os.path.basename(options.get_repos()[0]))
             with open(repo0, 'a') as r: r.write(',')
             self.assertRaises(ValueError, database_update.update_remote_url,
-                database_update.open_repos()[0], c)
+                options.get_repos()[0], c)
             # Test for incorrect version.
             #with open(repo0, 'w') as r:
             #    r.write(self.repotxt % (os.path.basename(repo0), 99.7))
@@ -278,7 +290,12 @@ class TestDatabaseUpdate(unittest.TestCase):
             #    database_update.update_remote_url,
             #    database_update.open_repos()[0], c)
 
-        database_update.update_remote()
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            database_update.update_remote()
+            # Check appropriate warning is shown.
+            self.assertEqual(len(w), 1)
+            self.assertIn('Could not process', str(w[0].message))
         # Bad repo (first) must be empty.
         self.assertRaises(TypeError, self._check_entries,
             options.get_repos()[0])
@@ -299,7 +316,12 @@ class TestDatabaseUpdate(unittest.TestCase):
             f.write('\n'.join(new))
 
         # Make sure other two still update correctly.
-        database_update.update_remote()
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            database_update.update_remote()
+            # Check appropriate warning is shown.
+            self.assertEqual(len(w), 1)
+            self.assertIn('Could not reach repo', str(w[0].message))
         r = options.get_repos()
         self._check_entries(r[0])
         self.assertRaises(TypeError, self._check_entries, r[1])
@@ -543,6 +565,7 @@ class TestPackages(unittest.TestCase):
 
     def setUp(self):
         options.working_dir = 'temp'
+        reload(database_update)
         with open(options.get_cfg(),'w') as cfg:
             cfg.write(self.cfg_text)
         database_update.update_remote()
@@ -584,6 +607,7 @@ class TestPackages(unittest.TestCase):
 
     def testPackage(self):
         p = packages.Package('bubbman2')
+        self.assertIs(p, packages.Package('bubbman2'))
 
 
     def testPackageGetLatest(self):
@@ -594,6 +618,27 @@ class TestPackages(unittest.TestCase):
         p = packages.Package('bubbman2')
         self.assertIsNot(p.local, p.get_latest())
         self.assertEqual(p.get_latest().version, '1.0.4.0')
+
+
+    def testSearchLocalPackages(self):
+        # Gets the package containing a specific application.
+        ps = packages.search_local_packages('applications', 'sample-app2')
+        self.assertSetEqual({p.id for p in ps}, {'sample-package'})
+        # Gets no package even though searching for substring of an app ID.
+        ps = packages.search_local_packages('applications', 'sample')
+        self.assertSetEqual({p.id for p in ps}, set())
+        # Gets package with only one application.
+        ps = packages.search_local_packages('applications', 'pcsx_rearmed.notaz.r8')
+        self.assertSetEqual({p.id for p in ps}, {'package.pcsx_rearmed.notaz.r8'})
+        # Gets packages with a particular word in the description.
+        ps = packages.search_local_packages('description', '%game%')
+        self.assertSetEqual({p.id for p in ps},
+            {'the-lonely-tower', 'scummvm.djwillis.0001'})
+        # Gets all packages in the Game category.
+        ps = packages.search_local_packages('categories', 'Game')
+        self.assertSetEqual({p.id for p in ps}, {'sparks',
+            'scummvm.djwillis.0001', 'sample-package', 'bubbman2',
+            'the-lonely-tower', 'hexen2.pickle', 'package.pcsx_rearmed.notaz.r8'})
 
 
     def testGetAll(self):
@@ -644,26 +689,11 @@ class TestPackages(unittest.TestCase):
 
 
     def testMissingTables(self):
-        # No tables exist.
         os.remove(options.get_database())
-        p = packages.Package('not-even-real')
-        self.assertFalse(p.local.exists)
-        self.assertItemsEqual(p.remote, [])
-        self.assertItemsEqual(packages.get_all_local(), [])
-        self.assertItemsEqual(packages.get_all(), [])
-
-        # Local, but not remote or remote index tables exist.
+        reload(database_update) # To trigger base table creation.
         database_update.update_local()
-        p = packages.Package('not-even-real')
-        self.assertFalse(p.local.exists)
-        self.assertItemsEqual(p.remote, [])
-        self.assertEqual(len(packages.get_all_local()), len(packages.get_all()))
 
-        # Empty index table exists.
-        with sqlite3.connect(options.get_database()) as db:
-            db.execute("""Create Table "%s" (
-                url Text Primary Key, name Text, etag Text, last_modified Text
-                )""" % database_update.REPO_INDEX_TABLE)
+        # Empty index table.
         p = packages.Package('not-even-real')
         self.assertFalse(p.local.exists)
         self.assertItemsEqual(p.remote, [])
@@ -676,7 +706,9 @@ class TestPackages(unittest.TestCase):
         new.insert(2, '"http://notreal.ihope",')
         with open(options.get_cfg(), 'w') as f:
             f.write('\n'.join(new))
-        database_update.update_remote()
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            database_update.update_remote()
         packages.get_all()
 
 

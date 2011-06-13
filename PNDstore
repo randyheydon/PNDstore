@@ -3,7 +3,7 @@
 
 
 from optparse import OptionParser
-from pndstore import options
+from pndstore_core import options
 
 parser = OptionParser()
 parser.add_option('--working-dir', '-w',
