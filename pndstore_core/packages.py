@@ -127,7 +127,7 @@ class Package(object):
         try:
             return cls._existing[pkgid]
         except KeyError:
-            p = object.__new__(cls, pkgid)
+            p = object.__new__(cls)
             cls._existing[pkgid] = p
             return p
 
