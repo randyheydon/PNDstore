@@ -23,6 +23,6 @@ gtk.gdk.threads_init()
 
 p = PNDstore()
 
-gtk.threads_enter()
+gtk.gdk.threads_enter()
 gtk.main()
-gtk.threads_leave()
+gtk.gdk.threads_leave()
