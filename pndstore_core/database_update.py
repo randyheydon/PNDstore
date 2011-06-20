@@ -177,8 +177,8 @@ def update_remote_url(url, cursor, full_update=None):
     if result is None:
         # This repo is not yet in the index (it's the first time it's
         # been checked), so make an empty entry and table for it.
-        cursor.execute('Insert Into "%s" (url) Values (?)'
-            %REPO_INDEX_TABLE, (table,) )
+        cursor.execute('''Insert Into "%s" (url,last_update,last_full_update)
+            Values (?,?,?)''' % REPO_INDEX_TABLE, (table,0,0) )
         create_table(cursor, table)
         result = (None, None, None, 0, 0)
     etag, last_modified, updates_url, last_update, last_full_update = result

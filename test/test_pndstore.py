@@ -302,6 +302,14 @@ class TestDatabaseUpdate(unittest.TestCase):
         # Good repo (second) should have correct entries.
         self._check_entries(options.get_repos()[1])
 
+        # Make sure we don't get a TypeError warning, as was caused by issues
+        # with last_full_update being unset after an error.
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            database_update.update_remote()
+            self.assertEqual(len(w), 1)
+            self.assertIn('ValueError', str(w[0].message))
+
         #TODO: Test for missing fields, including missing languages.
         #TODO: Test for malformed fields: uri, icon, md5.
 
