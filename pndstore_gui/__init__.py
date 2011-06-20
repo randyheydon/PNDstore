@@ -73,6 +73,13 @@ class PNDstore(object):
         return packages.Package(treemodel.get_value(treeiter, 1))
 
 
+    def show_error(self, msg):
+        print 'ERROR:', msg
+        self.statusbar.push(self.cid, msg)
+        time.sleep(5)
+        self.statusbar.pop(self.cid)
+
+
     def install(self, pkg):
         "Wrapper around Package.install and Package.upgrade."
         if pkg.local.exists:
@@ -99,11 +106,8 @@ class PNDstore(object):
                             try:
                                 pkg.upgrade()
                             except Exception as e:
-                                self.statusbar.pop(self.cid)
-                                self.statusbar.push(self.cid,
-                                    'Failed to upgrade %s: %s' %
-                                    (pkg.local.db_entry['title'], repr(e)))
-                                time.sleep(5)
+                                self.show_error( 'Failed to upgrade %s: %s' %
+                                    (pkg.local.db_entry['title'], repr(e)) )
                             finally:
                                 self.statusbar.pop(self.cid)
 
@@ -143,11 +147,8 @@ class PNDstore(object):
                         try:
                             pkg.install(box.get_active_text())
                         except Exception as e:
-                            self.statusbar.pop(self.cid)
-                            self.statusbar.push(self.cid,
-                                'Failed to install %s: %s' %
-                                (pkg.get_latest().db_entry['title'], repr(e)))
-                            time.sleep(5)
+                            self.show_error( 'Failed to install %s: %s' %
+                                (pkg.get_latest().db_entry['title'], repr(e)) )
                         finally:
                             self.statusbar.pop(self.cid)
 
@@ -208,11 +209,8 @@ class PNDstore(object):
                             try:
                                 p.upgrade()
                             except Exception as e:
-                                self.statusbar.pop(self.cid)
-                                self.statusbar.push(self.cid,
-                                    'Failed to upgrade %s: %s' %
-                                    (p.local.db_entry['title'], repr(e)))
-                                time.sleep(5)
+                                self.show_error( 'Failed to upgrade %s: %s' %
+                                    (p.local.db_entry['title'], repr(e)) )
                             finally:
                                 self.statusbar.pop(self.cid)
 
@@ -247,9 +245,7 @@ class PNDstore(object):
                 self.update_treeview()
 
                 for msg in w:
-                    self.statusbar.push(self.cid, str(msg.message))
-                    time.sleep(5)
-                    self.statusbar.pop(self.cid)
+                    self.show_error(str(msg.message))
 
         self.op_thread = ThreadUpdates()
         self.op_thread.start()
