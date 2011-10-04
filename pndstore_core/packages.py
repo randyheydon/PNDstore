@@ -63,6 +63,7 @@ class PackageInstance(object):
 
         with sqlite3.connect(options.get_database()) as db:
             db.row_factory = sqlite3.Row
+            db.text_factory = lambda x: unicode(x, 'utf-8', 'replace')
             # Will set db_entry to None if entry or table doesn't exist.
             try:
                 self.db_entry = db.execute('Select * From "%s" Where id=?'

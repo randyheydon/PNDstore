@@ -477,7 +477,7 @@ class TestLibpnd(unittest.TestCase):
         # packages found.  This test has several packages, some of which hold
         # multiple apps.
         n = libpnd.box_get_size(search)
-        self.assertEqual(n, 14)
+        self.assertEqual(n, 15)
 
         node = libpnd.box_get_head(search)
         pnds = [libpnd.box_get_key(node)]
@@ -488,7 +488,7 @@ class TestLibpnd(unittest.TestCase):
             'Sparks-0.4.2.pnd', 'The Lonely Tower-2.2.pnd', 'fulltest.pnd',
             'Chromium-dev.pxml.pnd', 'Hexen2.pxml.pnd', 'scummvm-op.pxml.pnd',
             'java.pxml.pnd','pcsx.pxml.pnd','Chromium-Dev.evildragon.pxml.pnd',
-            })
+            'stella.pxml.pnd'})
 
 
     def testParsing(self):
@@ -641,29 +641,32 @@ class TestPackages(unittest.TestCase):
         # Gets packages with a particular word in the description.
         ps = packages.search_local_packages('description', '%game%')
         self.assertSetEqual({p.id for p in ps},
-            {'the-lonely-tower', 'scummvm.djwillis.0001'})
+            {'the-lonely-tower', 'scummvm.djwillis.0001', 'stella-app'})
         # Gets all packages in the Game category.
         ps = packages.search_local_packages('categories', 'Game')
         self.assertSetEqual({p.id for p in ps}, {'sparks',
             'scummvm.djwillis.0001', 'sample-package', 'bubbman2',
-            'the-lonely-tower', 'hexen2.pickle', 'package.pcsx_rearmed.notaz.r8'})
+            'the-lonely-tower', 'hexen2.pickle', 'stella-app',
+            'package.pcsx_rearmed.notaz.r8'})
 
 
     def testGetAll(self):
         ps = packages.get_all()
         for p in ps:
             self.assertIsInstance(p, packages.Package)
+            self.assertTrue(p.get_latest().exists, msg="%s doesn't exist"%p.id)
         # TODO: Some better tests for this function.
-        # 28 in repo.json, 10 local, 2 in both.
-        self.assertEqual(len(ps), 28 + 10 - 2)
+        # 28 in repo.json, 11 local, 2 in both.
+        self.assertEqual(len(ps), 28 + 11 - 2)
 
 
     def testGetAllLocal(self):
         ps = packages.get_all_local()
         for p in ps:
             self.assertIsInstance(p, packages.Package)
+            self.assertTrue(p.local.exists, msg="%s doesn't exist"%p.id)
         # TODO: Some better tests for this function.
-        self.assertEqual(len(ps), 10)
+        self.assertEqual(len(ps), 11)
 
 
     def testGetUpdates(self):
