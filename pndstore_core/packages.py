@@ -63,6 +63,7 @@ class PackageInstance(object):
 
         with sqlite3.connect(options.get_database()) as db:
             db.row_factory = sqlite3.Row
+            db.text_factory = lambda x: unicode(x, 'utf-8', 'replace')
             # Will set db_entry to None if entry or table doesn't exist.
             try:
                 self.db_entry = db.execute('Select * From "%s" Where id=?'
@@ -97,7 +98,7 @@ class PackageInstance(object):
         # In the process, check its MD5 sum against the one given in the repo.
         # MD5 is optional in the spec, so only calculate it if it's not given.
         m_target = self.db_entry['md5']
-        if m_target: m = md5()
+        m = md5()
         with open(path, 'wb') as dest:
             for chunk in iter(lambda: p.read(128*m.block_size), ''):
                 if m_target: m.update(chunk)

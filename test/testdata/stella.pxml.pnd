@@ -1,0 +1,36 @@
+<PXML xmlns="http://openpandora.org/namespaces/PXML">
+<package id="stella-app">
+  <version major="1" minor="0" release="0" build="0" type="Release"/>
+  <author name="StreaK" website="http://pnd.to/4floor"/>
+  <titles>
+     <title lang="en_US">Stella - Atari2600 Emulator</title>
+  </titles>
+  <descriptions>
+  <description lang="en_US">The Atari 2600 Video Computer System (VCS), introduced in 1977, was the most popular home video game system of the early 1980's.  Now you can enjoy all of your favorite Atari 2600 games on your Pandora thanks to Stella!</description>
+  </descriptions>
+  <icon src="icon.png"/>
+  </package>
+
+  <application id="stella-app">
+    <exec command="run.sh"/>
+    <version major="3" minor="4" release="1" build="0"/>
+    <author name="Bradford W. Mott" website="http://stella.sourceforge.net/"/>
+    <titles>
+      <title lang="en_US">Stella - Atari2600 Emulator</title>
+    </titles>
+    <title lang="en_US">Stella - Atari2600 Emulator</title>
+    <descriptions>
+      <description lang="en_US">The Atari 2600 Video Computer System (VCS), introduced in 1977, was the most popular home video game system of the early 1980's.  Now you can enjoy all of your favorite Atari 2600 games on your Pandora thanks to Stella!</description>
+    </descriptions>
+    <description lang="en_US">The Atari 2600 Video Computer System (VCS), introduced in 1977, was the most popular home video game system of the early 1980's.  Now you can enjoy all of your favorite Atari 2600 games on your Pandora thanks to Stella!</description>
+    <icon src="icon.png"/>
+    <previewpics>
+      <pic src="01.png"/>
+    </previewpics>
+    <info name="Stella - Atari2600 Emulator Readme." type="text/html" src="/mnt/utmp/stella-app/docs/index.htm"/>
+    <categories>
+      <category name="Game">
+      </category>
+    </categories>
+  </application>
+</PXML>
