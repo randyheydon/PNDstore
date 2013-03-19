@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 """Tests the various core (non-gui-related) elements of pndstore.
 For many of these tests to work, libpnd.so.1 must be loadable.  Make sure it's
 installed (ie: on a Pandora), or accessible by LD_LIBRARY_PATH."""
