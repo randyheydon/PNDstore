@@ -253,42 +253,6 @@ pxml_get_osversion_build = p.pnd_pxml_get_osversion_build
 pxml_get_osversion_build.argtypes = [pxml_handle]
 pxml_get_osversion_build.restype = c.c_char_p
 
-pxml_get_associationitem1_name = p.pnd_pxml_get_associationitem1_name
-pxml_get_associationitem1_name.argtypes = [pxml_handle]
-pxml_get_associationitem1_name.restype = c.c_char_p
-
-pxml_get_associationitem1_filetype = p.pnd_pxml_get_associationitem1_filetype
-pxml_get_associationitem1_filetype.argtypes = [pxml_handle]
-pxml_get_associationitem1_filetype.restype = c.c_char_p
-
-pxml_get_associationitem1_parameter = p.pnd_pxml_get_associationitem1_parameter
-pxml_get_associationitem1_parameter.argtypes = [pxml_handle]
-pxml_get_associationitem1_parameter.restype = c.c_char_p
-
-pxml_get_associationitem2_name = p.pnd_pxml_get_associationitem2_name
-pxml_get_associationitem2_name.argtypes = [pxml_handle]
-pxml_get_associationitem2_name.restype = c.c_char_p
-
-pxml_get_associationitem2_filetype = p.pnd_pxml_get_associationitem2_filetype
-pxml_get_associationitem2_filetype.argtypes = [pxml_handle]
-pxml_get_associationitem2_filetype.restype = c.c_char_p
-
-pxml_get_associationitem2_parameter = p.pnd_pxml_get_associationitem2_parameter
-pxml_get_associationitem2_parameter.argtypes = [pxml_handle]
-pxml_get_associationitem2_parameter.restype = c.c_char_p
-
-pxml_get_associationitem3_name = p.pnd_pxml_get_associationitem3_name
-pxml_get_associationitem3_name.argtypes = [pxml_handle]
-pxml_get_associationitem3_name.restype = c.c_char_p
-
-pxml_get_associationitem3_filetype = p.pnd_pxml_get_associationitem3_filetype
-pxml_get_associationitem3_filetype.argtypes = [pxml_handle]
-pxml_get_associationitem3_filetype.restype = c.c_char_p
-
-pxml_get_associationitem3_parameter = p.pnd_pxml_get_associationitem3_parameter
-pxml_get_associationitem3_parameter.argtypes = [pxml_handle]
-pxml_get_associationitem3_parameter.restype = c.c_char_p
-
 pxml_get_clockspeed = p.pnd_pxml_get_clockspeed
 pxml_get_clockspeed.argtypes = [pxml_handle]
 pxml_get_clockspeed.restype = c.c_char_p
